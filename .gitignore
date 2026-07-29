@@ -1,0 +1,5 @@
+# Generated working files; versioned archives belong under offline-bundles/archives/.
+.staging/
+tmp/
+*.tmp
+
