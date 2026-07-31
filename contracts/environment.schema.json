@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Volcano performance environment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "adapter",
+    "bundle",
+    "cluster",
+    "stableVolcano",
+    "registry",
+    "capabilities"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "v1"
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mode"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": ["real", "mock"]
+        }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "fingerprint", "archiveSha256"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "null"}
+          ]
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/prefixedSha256"
+        },
+        "archiveSha256": {
+          "$ref": "#/$defs/nullableSha256"
+        }
+      }
+    },
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "provider",
+        "kubeconfig",
+        "kubernetesVersion",
+        "runtime",
+        "os",
+        "architecture",
+        "host"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "kubeconfig": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "kubernetesVersion": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "version": {
+              "$ref": "#/$defs/nullableString"
+            }
+          }
+        },
+        "os": {
+          "enum": ["linux"]
+        },
+        "architecture": {
+          "enum": ["amd64", "arm64"]
+        },
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpuModel", "cpuCores", "memoryBytes"],
+          "properties": {
+            "cpuModel": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "cpuCores": {
+              "oneOf": [
+                {"type": "integer", "minimum": 1},
+                {"type": "null"}
+              ]
+            },
+            "memoryBytes": {
+              "oneOf": [
+                {"type": "integer", "minimum": 1},
+                {"type": "null"}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "stableVolcano": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "namespace",
+        "installType",
+        "releaseName",
+        "components",
+        "deploymentMaterials"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "namespace": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "installType": {
+          "enum": ["helm", "manifests", "operator", "unknown"]
+        },
+        "releaseName": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "components": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/deployedComponent"
+          }
+        },
+        "deploymentMaterials": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceRevision",
+            "installArtifactSha256",
+            "crdSha256",
+            "configSha256",
+            "rbacSha256"
+          ],
+          "properties": {
+            "sourceRevision": {"$ref": "#/$defs/nullableString"},
+            "installArtifactSha256": {"$ref": "#/$defs/nullablePrefixedSha256"},
+            "crdSha256": {"$ref": "#/$defs/nullablePrefixedSha256"},
+            "configSha256": {"$ref": "#/$defs/nullablePrefixedSha256"},
+            "rbacSha256": {"$ref": "#/$defs/nullablePrefixedSha256"}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "installType": {"const": "helm"}
+            },
+            "required": ["installType"]
+          },
+          "then": {
+            "properties": {
+              "namespace": {"type": "string", "minLength": 1},
+              "releaseName": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
+    },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint"],
+      "properties": {
+        "endpoint": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "pullSecretRef": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cleanup",
+        "destroyCluster",
+        "skipStableVolcano",
+        "deployCandidateRelease",
+        "restoreStableRelease",
+        "loadImages"
+      ],
+      "properties": {
+        "cleanup": {"type": "boolean"},
+        "destroyCluster": {"type": "boolean"},
+        "skipStableVolcano": {"type": "boolean"},
+        "deployCandidateRelease": {"type": "boolean"},
+        "restoreStableRelease": {"type": "boolean"},
+        "loadImages": {"type": "boolean"}
+      }
+    }
+  },
+  "$defs": {
+    "nullableString": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"type": "null"}
+      ]
+    },
+    "nullableSha256": {
+      "oneOf": [
+        {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        {"type": "null"}
+      ]
+    },
+    "nullablePrefixedSha256": {
+      "oneOf": [
+        {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        {"type": "null"}
+      ]
+    },
+    "prefixedSha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "deployedComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workloadKind", "workloadName", "containerName", "image"],
+      "properties": {
+        "workloadKind": {
+          "enum": ["Deployment", "DaemonSet", "StatefulSet", "unknown"]
+        },
+        "workloadName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "containerName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1
+        },
+        "imageId": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+schemaVersion: v1
+detectedAt: "2026-07-30"
+bundle:
+  name: volcano-offline-e2e-bundle
+  semanticVersion: null
+  fingerprint: sha256:b6be2a7141ba2add25a76b0a2b35fd7319267796f569e6cb01d2acf7c728f562
+  platform: linux/amd64
+referenceVolcano:
+  commit: 1cb0a6359032ad5214143e0c22672f15ac7965c2
+  trackedSourceClean: true
+  shallowCheckout: true
+toolchain:
+  goVersion: 1.26.2
+  kubernetesVersion: v1.36.1
+  kindVersion: v0.32.0
+  kubectlVersion: v1.36.1
+  helmVersion: v3.19.0
+  ginkgoVersion: v2.28.1
+  runnerImage: volcano-offline-runner:1cb0a6359032ad5214143e0c22672f15ac7965c2
+  kindNodeImage: kindest/node:v1.36.1
+assets:
+  imageArchives: 7
+  requiredImageTags: 23
+  kwokChartArchives: 2
+capabilities:
+  checksumVerificationEntrypoint: true
+  offlineInstallEntrypoint: true
+  localRegistryMirror: true
+  clusterDestroy: true
+  nativeExternalCandidateSourceMount: false
+performanceToolDelta:
+  alreadyProvided:
+    - kwok-v0.7.0
+    - kwok-v0.8.0
+    - kwok-chart-0.3.0
+    - kwok-stage-fast-chart-0.3.0
+  absentFromRequiredImageManifest:
+    - prometheus
+    - grafana
+    - kube-state-metrics
+    - kube-apiserver-audit-exporter
+verification:
+  bundleChecksumsPassed: true
+  offlineInstallPassed: true
+  kindNodesReady: 5
+  volcanoSmokePassed: true
+  publicEgressBlockedAtKindNodes: true
+  dockerPullEventsDuringDeployment: 0
+  fullE2EMatrixRun: false

@@ -1,0 +1,95 @@
+schemaVersion: v1
+candidate:
+  version: commit-8fc394c11e8d
+  commit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+  sourceRepository: https://github.com/volcano-sh/volcano.git
+  platform:
+    os: linux
+    architecture: amd64
+  componentDiscovery:
+    method: source-scan
+    sources:
+      - Makefile
+      - installer/dockerfile/
+      - installer/helm/chart/volcano/
+    components:
+      - scheduler
+      - controller
+      - webhook
+      - agent-scheduler
+  components:
+    scheduler:
+      sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+      buildContext: .
+      buildDefinition: installer/dockerfile/scheduler/Dockerfile
+      image:
+        repository: registry.intra/volcano/vc-scheduler
+        tag: commit-8fc394c11e8d
+        digest: sha256:6666666666666666666666666666666666666666666666666666666666666666
+    controller:
+      sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+      buildContext: .
+      buildDefinition: installer/dockerfile/controller-manager/Dockerfile
+      image:
+        repository: registry.intra/volcano/vc-controller-manager
+        tag: commit-8fc394c11e8d
+        digest: sha256:7777777777777777777777777777777777777777777777777777777777777777
+    webhook:
+      sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+      buildContext: .
+      buildDefinition: installer/dockerfile/webhook-manager/Dockerfile
+      image:
+        repository: registry.intra/volcano/vc-webhook-manager
+        tag: commit-8fc394c11e8d
+        digest: sha256:8888888888888888888888888888888888888888888888888888888888888888
+    agent-scheduler:
+      sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+      buildContext: .
+      buildDefinition: installer/dockerfile/agent-scheduler/Dockerfile
+      image:
+        repository: registry.intra/volcano/vc-agent-scheduler
+        tag: commit-8fc394c11e8d
+        digest: sha256:9999999999999999999999999999999999999999999999999999999999999999
+  deploymentMaterials:
+    sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    installation:
+      type: helm-chart
+      artifacts:
+        - path: installer/helm/chart/volcano/
+          sha256: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    crds:
+      - path: installer/helm/chart/volcano/crd/
+        sha256: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    config:
+      - path: installer/helm/chart/volcano/templates/scheduler-configmap.yaml
+        sha256: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+        sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    rbac:
+      - path: installer/helm/chart/volcano/templates/rbac.yaml
+        sha256: sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+        sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    workloads:
+      - path: installer/helm/chart/volcano/templates/scheduler.yaml
+        sha256: sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+        sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    serviceAccounts:
+      - path: installer/helm/chart/volcano/templates/serviceaccount.yaml
+        sha256: sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+    services:
+      - path: installer/helm/chart/volcano/templates/admission-service.yaml
+        sha256: sha256:1212121212121212121212121212121212121212121212121212121212121212
+        sourceCommit: 8fc394c11e8db0d0ada5c17816b58bced9d7213d
+  deployment:
+    strategy: auto
+    imageOnlyCompatibility:
+      evaluated: false
+      againstEnvironmentFingerprint: null
+      componentSetUnchanged: null
+      crdsUnchanged: null
+      chartCompatible: null
+      configCompatible: null
+      rbacCompatible: null
+      evidence: []

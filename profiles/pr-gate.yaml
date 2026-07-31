@@ -1,0 +1,14 @@
+schemaVersion: v1
+name: pr-gate
+cluster:
+  kwokNodes: 500
+workload:
+  type: gang
+  jobs: 50
+  replicasPerJob: 100
+  minAvailable: 100
+execution:
+  warmupRuns: 1
+  formalRuns: 3
+  timeout: 30m
+  aggregation: median

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "v1",
+  "metadata": {
+    "runId": "contract-demo-formal-3",
+    "profile": "pr-gate",
+    "profileHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "environmentFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "subject": {
+      "type": "candidate",
+      "version": "commit-8fc394c11e8d",
+      "commit": "8fc394c11e8db0d0ada5c17816b58bced9d7213d"
+    },
+    "provenance": {
+      "baseEnvironmentBundle": {
+        "name": "mock-internal-volcano-bundle",
+        "version": null,
+        "fingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "archiveSha256": null
+      },
+      "kubernetesVersion": "v1.35.5",
+      "containerRuntime": {
+        "name": "containerd",
+        "version": "2.1.4"
+      },
+      "architecture": "amd64",
+      "runner": {
+        "cpuModel": "Mock CPU",
+        "cpuCores": 16,
+        "memoryBytes": 68719476736
+      },
+      "stableVolcanoVersion": "v1.15.0",
+      "volcanoConfigHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "performanceToolsVersion": "mock-tools-v1",
+      "testCodeCommit": "1010101010101010101010101010101010101010"
+    },
+    "iteration": 3,
+    "warmup": false
+  },
+  "status": "success",
+  "metrics": {
+    "pod_scheduling_latency_p50_ms": 110.0,
+    "pod_scheduling_latency_p90_ms": 190.0,
+    "pod_scheduling_latency_p99_ms": 340.0,
+    "pod_scheduling_throughput_pods_per_second": 440.0,
+    "total_scheduling_duration_seconds": 22.8,
+    "expected_pods": 5000,
+    "scheduled_pods": 5000,
+    "failed_pods": 0,
+    "pending_pods": 0,
+    "scheduled_pod_ratio": 1.0,
+    "scheduler_cpu_peak_cores": 3.0,
+    "scheduler_memory_peak_mb": 1900,
+    "scheduler_restart_count": 0,
+    "benchmark_success": true
+  }
+}

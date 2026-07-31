@@ -1,0 +1,7 @@
+**
+!tools/
+!tools/**
+tools/vendor/**/__pycache__/
+tools/vendor/**/*.pyc
+tools/vendor/jsonschema/tests/
+tools/vendor/jsonschema/tests/**

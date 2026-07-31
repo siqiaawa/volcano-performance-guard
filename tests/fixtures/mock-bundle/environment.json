@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "v1",
+  "adapter": {
+    "name": "mock-environment",
+    "mode": "mock"
+  },
+  "bundle": {
+    "name": "mock-internal-volcano-bundle",
+    "version": null,
+    "fingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "archiveSha256": null
+  },
+  "cluster": {
+    "name": "mock-volcano-perf",
+    "provider": "mock",
+    "kubeconfig": "/mock/volcano-perf/kubeconfig",
+    "kubernetesVersion": "v1.35.5",
+    "runtime": {
+      "name": "containerd",
+      "version": "2.1.4"
+    },
+    "os": "linux",
+    "architecture": "amd64",
+    "host": {
+      "cpuModel": "Mock CPU",
+      "cpuCores": 16,
+      "memoryBytes": 68719476736
+    }
+  },
+  "stableVolcano": {
+    "version": "v1.15.0",
+    "namespace": "volcano-system",
+    "installType": "helm",
+    "releaseName": "volcano",
+    "components": {
+      "scheduler": {
+        "workloadKind": "Deployment",
+        "workloadName": "volcano-scheduler",
+        "containerName": "volcano-scheduler",
+        "image": "registry.intra/volcano/vc-scheduler:v1.15.0",
+        "imageId": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "controller": {
+        "workloadKind": "Deployment",
+        "workloadName": "volcano-controllers",
+        "containerName": "volcano-controllers",
+        "image": "registry.intra/volcano/vc-controller-manager:v1.15.0",
+        "imageId": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "webhook": {
+        "workloadKind": "Deployment",
+        "workloadName": "volcano-admission",
+        "containerName": "volcano-admission",
+        "image": "registry.intra/volcano/vc-webhook-manager:v1.15.0",
+        "imageId": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "agentScheduler": {
+        "workloadKind": "Deployment",
+        "workloadName": "volcano-agent-scheduler",
+        "containerName": "volcano-agent-scheduler",
+        "image": "registry.intra/volcano/vc-agent-scheduler:v1.15.0",
+        "imageId": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      }
+    },
+    "deploymentMaterials": {
+      "sourceRevision": "v1.15.0",
+      "installArtifactSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "crdSha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "configSha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "rbacSha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  },
+  "registry": {
+    "endpoint": "registry.intra/perf",
+    "pullSecretRef": "internal-registry"
+  },
+  "capabilities": {
+    "cleanup": true,
+    "destroyCluster": true,
+    "skipStableVolcano": false,
+    "deployCandidateRelease": true,
+    "restoreStableRelease": true,
+    "loadImages": true
+  }
+}

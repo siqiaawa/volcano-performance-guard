@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Volcano benchmark profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "cluster", "workload", "execution"],
+  "properties": {
+    "schemaVersion": {
+      "const": "v1"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,62}$"
+    },
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kwokNodes"],
+      "properties": {
+        "kwokNodes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "workload": {
+      "oneOf": [
+        {"$ref": "#/$defs/gangWorkload"},
+        {"$ref": "#/$defs/podWorkload"}
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmupRuns", "formalRuns", "timeout", "aggregation"],
+      "properties": {
+        "warmupRuns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "formalRuns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeout": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(s|m|h)$"
+        },
+        "aggregation": {
+          "const": "median"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "gangWorkload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "jobs", "replicasPerJob", "minAvailable"],
+      "properties": {
+        "type": {"const": "gang"},
+        "jobs": {"type": "integer", "minimum": 1},
+        "replicasPerJob": {"type": "integer", "minimum": 1},
+        "minAvailable": {"type": "integer", "minimum": 1}
+      }
+    },
+    "podWorkload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "podCount"],
+      "properties": {
+        "type": {"const": "pod"},
+        "podCount": {"type": "integer", "minimum": 1},
+        "schedulerName": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

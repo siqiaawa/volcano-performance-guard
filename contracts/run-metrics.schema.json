@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Single Volcano benchmark run metrics",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "status", "metrics"],
+  "properties": {
+    "schemaVersion": {"const": "v1"},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "profile",
+        "profileHash",
+        "environmentFingerprint",
+        "subject",
+        "provenance",
+        "iteration",
+        "warmup"
+      ],
+      "properties": {
+        "runId": {"type": "string", "minLength": 1},
+        "profile": {"type": "string", "minLength": 1},
+        "profileHash": {"$ref": "#/$defs/prefixedSha256"},
+        "environmentFingerprint": {"$ref": "#/$defs/prefixedSha256"},
+        "subject": {"$ref": "#/$defs/subject"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "iteration": {"type": "integer", "minimum": 1},
+        "warmup": {"type": "boolean"}
+      }
+    },
+    "status": {
+      "enum": ["success", "failed"]
+    },
+    "metrics": {
+      "$ref": "#/$defs/coreMetrics"
+    }
+  },
+  "$defs": {
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "prefixedSha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "version", "commit"],
+      "properties": {
+        "type": {"enum": ["stable", "candidate"]},
+        "version": {"type": "string", "minLength": 1},
+        "commit": {
+          "oneOf": [
+            {"$ref": "#/$defs/commit"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"type": {"const": "candidate"}},
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {"commit": {"$ref": "#/$defs/commit"}}
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseEnvironmentBundle",
+        "kubernetesVersion",
+        "containerRuntime",
+        "architecture",
+        "runner",
+        "stableVolcanoVersion",
+        "volcanoConfigHash",
+        "performanceToolsVersion",
+        "testCodeCommit"
+      ],
+      "properties": {
+        "baseEnvironmentBundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version", "fingerprint", "archiveSha256"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "version": {
+              "oneOf": [
+                {"type": "string", "minLength": 1},
+                {"type": "null"}
+              ]
+            },
+            "fingerprint": {"$ref": "#/$defs/prefixedSha256"},
+            "archiveSha256": {
+              "oneOf": [
+                {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+                {"type": "null"}
+              ]
+            }
+          }
+        },
+        "kubernetesVersion": {"type": "string", "minLength": 1},
+        "containerRuntime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "version": {"type": "string", "minLength": 1}
+          }
+        },
+        "architecture": {"enum": ["amd64", "arm64"]},
+        "runner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpuModel", "cpuCores", "memoryBytes"],
+          "properties": {
+            "cpuModel": {"type": "string", "minLength": 1},
+            "cpuCores": {"type": "integer", "minimum": 1},
+            "memoryBytes": {"type": "integer", "minimum": 1}
+          }
+        },
+        "stableVolcanoVersion": {"type": "string", "minLength": 1},
+        "volcanoConfigHash": {"$ref": "#/$defs/prefixedSha256"},
+        "performanceToolsVersion": {"type": "string", "minLength": 1},
+        "testCodeCommit": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "nonNegative": {
+      "type": "number",
+      "minimum": 0
+    },
+    "coreMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pod_scheduling_latency_p50_ms",
+        "pod_scheduling_latency_p90_ms",
+        "pod_scheduling_latency_p99_ms",
+        "pod_scheduling_throughput_pods_per_second",
+        "total_scheduling_duration_seconds",
+        "expected_pods",
+        "scheduled_pods",
+        "failed_pods",
+        "pending_pods",
+        "scheduled_pod_ratio",
+        "scheduler_cpu_peak_cores",
+        "scheduler_memory_peak_mb",
+        "scheduler_restart_count",
+        "benchmark_success"
+      ],
+      "properties": {
+        "pod_scheduling_latency_p50_ms": {"$ref": "#/$defs/nonNegative"},
+        "pod_scheduling_latency_p90_ms": {"$ref": "#/$defs/nonNegative"},
+        "pod_scheduling_latency_p99_ms": {"$ref": "#/$defs/nonNegative"},
+        "pod_scheduling_throughput_pods_per_second": {"$ref": "#/$defs/nonNegative"},
+        "total_scheduling_duration_seconds": {"$ref": "#/$defs/nonNegative"},
+        "expected_pods": {"$ref": "#/$defs/nonNegative"},
+        "scheduled_pods": {"$ref": "#/$defs/nonNegative"},
+        "failed_pods": {"$ref": "#/$defs/nonNegative"},
+        "pending_pods": {"$ref": "#/$defs/nonNegative"},
+        "scheduled_pod_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+        "scheduler_cpu_peak_cores": {"$ref": "#/$defs/nonNegative"},
+        "scheduler_memory_peak_mb": {"$ref": "#/$defs/nonNegative"},
+        "scheduler_restart_count": {"$ref": "#/$defs/nonNegative"},
+        "benchmark_success": {"type": "boolean"}
+      }
+    }
+  }
+}

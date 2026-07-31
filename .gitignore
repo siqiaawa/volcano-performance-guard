@@ -1,5 +1,13 @@
-# Generated working files; versioned archives belong under offline-bundles/archives/.
-.staging/
+.work/
 tmp/
 *.tmp
+__pycache__/
+*.py[cod]
 
+# Candidate Go module archives are Release assets; keep their commit metadata
+# and checksum in Git, but do not store the binary supplement in history.
+offline-assets/go-mod/**/*.tar.gz
+
+# Reports are run artifacts. Keep only the directory policy document.
+reports/*
+!reports/README.md

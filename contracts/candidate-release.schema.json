@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate Volcano release",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "candidate"],
+  "properties": {
+    "schemaVersion": {
+      "const": "v1"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "commit",
+        "sourceRepository",
+        "platform",
+        "componentDiscovery",
+        "components",
+        "deploymentMaterials",
+        "deployment"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "sourceRepository": {
+          "type": "string",
+          "format": "uri"
+        },
+        "platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["os", "architecture"],
+          "properties": {
+            "os": {"const": "linux"},
+            "architecture": {"enum": ["amd64", "arm64"]}
+          }
+        },
+        "componentDiscovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "sources", "components"],
+          "properties": {
+            "method": {"const": "source-scan"},
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "components": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/componentName"}
+            }
+          }
+        },
+        "components": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/componentName"},
+          "additionalProperties": {"$ref": "#/$defs/component"}
+        },
+        "deploymentMaterials": {
+          "$ref": "#/$defs/deploymentMaterials"
+        },
+        "deployment": {
+          "$ref": "#/$defs/deployment"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "componentName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "prefixedSha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "digest"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^:/\\s]+(?::[0-9]+)?/[^\\s:@]+(?:/[^\\s:@]+)*$"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^(?!(?:latest|dev|master|main|edge|nightly)$)[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$"
+        },
+        "digest": {
+          "$ref": "#/$defs/prefixedSha256"
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceCommit", "buildContext", "buildDefinition", "image"],
+      "properties": {
+        "sourceCommit": {"$ref": "#/$defs/commit"},
+        "buildContext": {"type": "string", "minLength": 1},
+        "buildDefinition": {"type": "string", "minLength": 1},
+        "image": {"$ref": "#/$defs/image"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "sourceCommit"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/prefixedSha256"},
+        "sourceCommit": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "artifactList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "deploymentMaterials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceCommit",
+        "installation",
+        "crds",
+        "config",
+        "rbac",
+        "workloads",
+        "serviceAccounts",
+        "services"
+      ],
+      "properties": {
+        "sourceCommit": {"$ref": "#/$defs/commit"},
+        "installation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "artifacts"],
+          "properties": {
+            "type": {"enum": ["helm-chart", "manifests"]},
+            "artifacts": {"$ref": "#/$defs/artifactList"}
+          }
+        },
+        "crds": {"$ref": "#/$defs/artifactList"},
+        "config": {"$ref": "#/$defs/artifactList"},
+        "rbac": {"$ref": "#/$defs/artifactList"},
+        "workloads": {"$ref": "#/$defs/artifactList"},
+        "serviceAccounts": {"$ref": "#/$defs/artifactList"},
+        "services": {"$ref": "#/$defs/artifactList"}
+      }
+    },
+    "nullableBoolean": {
+      "oneOf": [
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluated",
+        "againstEnvironmentFingerprint",
+        "componentSetUnchanged",
+        "crdsUnchanged",
+        "chartCompatible",
+        "configCompatible",
+        "rbacCompatible",
+        "evidence"
+      ],
+      "properties": {
+        "evaluated": {"type": "boolean"},
+        "againstEnvironmentFingerprint": {
+          "oneOf": [
+            {"$ref": "#/$defs/prefixedSha256"},
+            {"type": "null"}
+          ]
+        },
+        "componentSetUnchanged": {"$ref": "#/$defs/nullableBoolean"},
+        "crdsUnchanged": {"$ref": "#/$defs/nullableBoolean"},
+        "chartCompatible": {"$ref": "#/$defs/nullableBoolean"},
+        "configCompatible": {"$ref": "#/$defs/nullableBoolean"},
+        "rbacCompatible": {"$ref": "#/$defs/nullableBoolean"},
+        "evidence": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "imageOnlyCompatibility"],
+      "properties": {
+        "strategy": {
+          "enum": [
+            "auto",
+            "image-only",
+            "helm-upgrade",
+            "manifest-apply",
+            "reinstall",
+            "recreate-cluster"
+          ]
+        },
+        "imageOnlyCompatibility": {"$ref": "#/$defs/compatibility"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"strategy": {"const": "image-only"}},
+            "required": ["strategy"]
+          },
+          "then": {
+            "properties": {
+              "imageOnlyCompatibility": {
+                "properties": {
+                  "evaluated": {"const": true},
+                  "againstEnvironmentFingerprint": {"$ref": "#/$defs/prefixedSha256"},
+                  "componentSetUnchanged": {"const": true},
+                  "crdsUnchanged": {"const": true},
+                  "chartCompatible": {"const": true},
+                  "configCompatible": {"const": true},
+                  "rbacCompatible": {"const": true},
+                  "evidence": {"minItems": 1}
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

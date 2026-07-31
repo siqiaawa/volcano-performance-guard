@@ -1,0 +1,14 @@
+schemaVersion: v1
+name: smoke
+cluster:
+  kwokNodes: 100
+workload:
+  type: gang
+  jobs: 5
+  replicasPerJob: 20
+  minAvailable: 20
+execution:
+  warmupRuns: 0
+  formalRuns: 1
+  timeout: 10m
+  aggregation: median

@@ -1,0 +1,18 @@
+schemaVersion: v1
+metrics:
+  pod_scheduling_throughput_pods_per_second:
+    direction: higher
+    warningRelative: 0.10
+    failureRelative: 0.20
+  total_scheduling_duration_seconds:
+    direction: lower
+    warningRelative: 0.10
+    failureRelative: 0.20
+  scheduler_cpu_peak_cores:
+    direction: lower
+    warningRelative: 0.15
+    failureRelative: 0.30
+  scheduler_memory_peak_mb:
+    direction: lower
+    warningRelative: 0.15
+    failureRelative: 0.30

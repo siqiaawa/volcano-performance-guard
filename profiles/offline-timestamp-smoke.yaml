@@ -1,0 +1,13 @@
+schemaVersion: v1
+name: offline-timestamp-smoke
+cluster:
+  kwokNodes: 0
+workload:
+  type: pod
+  podCount: 10
+  schedulerName: volcano
+execution:
+  warmupRuns: 0
+  formalRuns: 1
+  timeout: 5m
+  aggregation: median
