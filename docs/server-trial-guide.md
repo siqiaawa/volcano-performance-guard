@@ -52,6 +52,27 @@ requirements-contract.txt
 
 imported-manifest.json 和 registry-images.env 可以一并复制，服务器重新导入后会刷新。不要把开发机整个 .work 目录复制过去；reports、clusters、candidates、contract-demo 都是运行时生成物。
 
+如果通过 GitHub Release 交付，Release 页面中的附件是扁平的，不会保留目录。克隆仓库后必须按以下方式还原；文件名不能修改，归档不能提前解压：
+
+~~~text
+.work/offline-assets/benchmark-tools/d57d10f47129b11f12d875de1195a42c0a53270f/
+  benchmark-images.tar
+  manifest.json
+  SHA256SUMS
+  charts/
+    kwok-chart-0.3.0.tgz
+    kwok-stage-fast-chart-0.3.0.tgz
+
+offline-assets/go-mod/d57d10f47129b11f12d875de1195a42c0a53270f/
+  go-mod-supplement.tar.gz
+  go-mod-supplement.tar.gz.sha256
+  base-runner-image.txt
+  candidate-commit.txt
+  missing-modules.txt
+~~~
+
+其中 Go module 目录里的后四个元数据文件已经随 Git 仓库提供，Release 下载后只需补入 `go-mod-supplement.tar.gz`；同时上传其 `.sha256` 文件便于独立核对。Benchmark 目录则由 Release 附件完整还原。准确的浏览器放置规则和 `gh release download` 命令见 `offline-assets/README.md`。
+
 当前体积是合理的：Performance Guard 源码和依赖约 43 MiB，vendored Python 依赖约 2.3 MiB，Benchmark 镜像归档约 800 MiB，候选 Go module 增量包约 40 MiB。工具镜像包含 Python 3.13.5、PyYAML 6.0.1、jsonschema 4.10.3 和 Docker CLI，所以服务器不需要预装 Python；服务器仍需要 Docker daemon、Bash、Git、Make。
 
 ## 3. 设置路径和前置检查
