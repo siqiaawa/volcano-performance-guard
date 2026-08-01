@@ -58,9 +58,13 @@ gh release download v0.1.0 \
 gh release download v0.1.0 \
   --repo siqiaawa/volcano-performance-guard \
   --pattern 'go-mod-supplement.tar.gz' \
-  --pattern 'go-mod-supplement.tar.gz.sha256' \
   --dir "$GO_MOD_ASSET_DIR"
 ```
+
+The checksum file is also attached to the Release for standalone verification,
+but a cloned checkout already contains the same reviewed file. The command
+above therefore downloads only the missing archive and does not overwrite
+tracked metadata.
 
 Verify both independent asset sets before running any import:
 
