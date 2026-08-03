@@ -46,7 +46,7 @@ Release 标签，不是 Volcano 候选版本号：
 export PREP_ROOT=$PWD/volcano-trial
 mkdir -p "$PREP_ROOT"
 
-git clone --branch v0.1.0 --depth 1 \
+git clone --branch main --single-branch \
   https://github.com/siqiaawa/volcano-offline-e2e-bundle.git \
   "$PREP_ROOT/volcano-offline-e2e-bundle"
 
@@ -82,8 +82,9 @@ test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
 ```
 
 任一 `test` 失败都要停止，不能用其他候选源码配合当前固化资产。
-Performance Guard 的代码从 `main` 拉取，以获得当前服务器验证说明和修正；其二进制
-资产仍从 `v0.1.0` Release 下载，并由候选 commit 与校验清单绑定。
+学长包和 Performance Guard 的代码都从 `main` 拉取，以获得当前下载说明和服务器
+验证修正；两个仓库的二进制资产仍分别从各自的 `v0.1.0` Release 下载，并由固定
+文件名、候选 commit 与校验清单绑定。
 
 ### 2. 下载并还原学长包 Release
 
