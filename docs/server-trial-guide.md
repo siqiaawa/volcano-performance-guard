@@ -32,6 +32,11 @@ d57d10f47129b11f12d875de1195a42c0a53270f
   volcano-test-version/
 ~~~
 
+The bundle Release asset
+`volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz` must be
+placed at `volcano-offline-e2e-bundle/metadata/`. It is the reference package's
+own Git metadata and is not obtained from `volcano-test-version`.
+
 学长包必须完整复制。它约 3.5 GiB，主要是不可替代的镜像归档，不能删除 images、runner、source、charts 或 manifest。
 
 Performance Guard 初始交付至少包括：
@@ -49,6 +54,11 @@ requirements-contract.txt
   candidate-commit.txt
   charts/
 ~~~
+
+`volcano-test-version/.git` 必须随候选仓库保留，因为性能工具需要读取候选自己的
+HEAD 和工作树状态；可以是 `--depth 1` 的浅克隆。`.github` 和 `.gitattributes` 不
+是服务器运行依赖。参考包的 `source/volcano/.git` 不从候选仓库复制，而由学长包
+Release 中的独立 metadata 资产在服务器准备阶段恢复。
 
 imported-manifest.json 和 registry-images.env 可以一并复制，服务器重新导入后会刷新。不要把开发机整个 .work 目录复制过去；reports、clusters、candidates、contract-demo 都是运行时生成物。
 
@@ -121,12 +131,14 @@ commit 不一致或工作树不干净时必须停止。
 
 ### 4.1 校验归档和参考源码
 
-从 GitHub 克隆的离线包不包含嵌套的 `source/volcano/.git`。先用同机候选仓库中已有
-的完整历史恢复参考提交的 shallow Git 元数据；脚本只写 `.git`，不会改写工作树：
+从 GitHub 克隆的离线包不包含嵌套的 `source/volcano/.git`。先把学长包 Release
+中的 `metadata/volcano-reference-git-*.tar.gz` 放入 `metadata/`，再由学长包自己的
+脚本恢复参考提交的 shallow Git 元数据；脚本只写 `.git`，不会改写工作树，也不读取
+候选仓库：
 
 ~~~bash
 cd $BUNDLE_DIR
-./restore-source-git.sh --source-repo $CANDIDATE_DIR
+./prepare-reference-source.sh
 ./verify-bundle.sh
 ~~~
 

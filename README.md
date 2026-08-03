@@ -8,6 +8,11 @@
 
 本仓库不保存 Volcano 业务源码，不复制离线包的参考源码，也不保存 Docker 镜像 tar。当前候选 commit 的 Go module 补充包是经过 commit、基础 Runner 和 SHA-256 绑定的例外离线制品，保存在 `offline-assets/go-mod/`；它不是 Docker 镜像，也不替代仍应通过独立 Release 交付的性能工具镜像。
 
+两套交付的 Git 身份严格分开：学长离线包用自己的 `metadata/volcano-reference-git-*.tar.gz`
+恢复并验证固定参考提交；本仓库只从 `CANDIDATE_DIR/.git` 读取候选提交。性能工具会使用
+离线包提供的 Runner、镜像和本地 registry，但不会把候选 Git 元数据写入或恢复到
+`$BUNDLE_DIR/source/volcano`，也不要求候选历史包含参考提交。
+
 ## 当前状态
 
 离线包阶段 A 检查已经完成：
@@ -55,13 +60,14 @@ git clone --branch main --single-branch \
   "$PREP_ROOT/volcano-performance-guard"
 
 git clone --branch main --single-branch \
+  --depth 1 \
   https://github.com/siqiaawa/volcano-test-version.git \
   "$PREP_ROOT/volcano-test-version"
 ```
 
-候选仓库这一步故意不使用 `--depth 1`：恢复学长包的参考源码 Git 元数据需要读取
-其中的祖先提交 `1cb0a6359032ad5214143e0c22672f15ac7965c2`。候选仓库只作为本地
-历史来源，不会被修改。
+候选仓库只需要保留自己的候选 HEAD 和工作树，可以使用浅克隆；它不再为学长包
+提供参考提交历史。学长包的参考源码 Git 元数据由学长包自己的 Release 资产提供，
+两个仓库互不恢复、互不覆盖。
 
 固定本轮目录和候选身份：
 
@@ -93,12 +99,12 @@ test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
 ### 2. 下载并还原学长包 Release
 
 GitHub Release 附件是扁平的。7 个镜像 tar 放进 `images/`，两个 Chart 放进
-`charts/`，文件名保持不变且不要解压。下面继续使用第 1 步定义的
+`charts/`，参考源码 Git 元数据 tar 放进 `metadata/`，文件名保持不变且不要解压。下面继续使用第 1 步定义的
 `download_release_asset` 函数；如果打开了新的 shell，需要先重新执行第 1 步的变量和
 函数定义：
 
 ```bash
-mkdir -p "$BUNDLE_DIR/images" "$BUNDLE_DIR/charts"
+mkdir -p "$BUNDLE_DIR/images" "$BUNDLE_DIR/charts" "$BUNDLE_DIR/metadata"
 
 for asset in \
   00-runner.tar \
@@ -116,6 +122,11 @@ for asset in kwok-chart-0.3.0.tgz kwok-stage-fast-chart-0.3.0.tgz; do
   download_release_asset \
     siqiaawa/volcano-offline-e2e-bundle v0.1.0 "$asset" "$BUNDLE_DIR/charts/$asset"
 done
+
+download_release_asset \
+  siqiaawa/volcano-offline-e2e-bundle v0.1.0 \
+  volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz \
+  "$BUNDLE_DIR/metadata/volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz"
 
 (cd "$BUNDLE_DIR" && sha256sum -c SHA256SUMS)
 ```
@@ -224,12 +235,14 @@ test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
 
 ### 5. 验证并安装学长离线包
 
-GitHub 不会保存嵌套的 `source/volcano/.git`。先从已经拉取的候选仓库历史恢复参考
-提交的独立 shallow Git 元数据；该命令会验证现有参考源码，不会改写工作树：
+GitHub 不会保存嵌套的 `source/volcano/.git`。从学长包 Release 下载其
+`metadata/volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz`
+后，使用学长包自己的元数据恢复脚本；该命令会验证现有参考源码，不会改写工作树，
+也不读取候选仓库：
 
 ```bash
 cd "$BUNDLE_DIR"
-./restore-source-git.sh --source-repo "$CANDIDATE_DIR"
+./prepare-reference-source.sh
 ./verify-bundle.sh
 ./install-offline.sh
 
@@ -239,8 +252,7 @@ docker image inspect volcano-offline-runner:1cb0a6359032ad5214143e0c22672f15ac79
 docker image inspect kindest/node:v1.36.1
 ```
 
-如果省略恢复步骤，Git 会向父目录查找并把外层 bundle 的 `bd9efc...` 等提交误当成
-参考源码提交。`verify-bundle.sh` 现在会明确拒绝缺少独立 `.git` 的目录，而不会继续
+如果省略准备步骤，`verify-bundle.sh` 会明确拒绝缺少独立 `.git` 的目录，而不会继续
 误判。校验必须全部通过，registry 探针必须成功。随后先执行学长包最小入口：
 
 ```bash
