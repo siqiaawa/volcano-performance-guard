@@ -121,8 +121,12 @@ commit 不一致或工作树不干净时必须停止。
 
 ### 4.1 校验归档和参考源码
 
+从 GitHub 克隆的离线包不包含嵌套的 `source/volcano/.git`。先用同机候选仓库中已有
+的完整历史恢复参考提交的 shallow Git 元数据；脚本只写 `.git`，不会改写工作树：
+
 ~~~bash
 cd $BUNDLE_DIR
+./restore-source-git.sh --source-repo $CANDIDATE_DIR
 ./verify-bundle.sh
 ~~~
 
@@ -130,6 +134,7 @@ cd $BUNDLE_DIR
 
 - SHA256SUMS 全部为 OK；
 - source/volcano commit 为 1cb0a6359032ad5214143e0c22672f15ac7965c2；
+- source/volcano Git 顶层就是 source/volcano，不会向上误读外层 bundle commit；
 - 受 Git 管理的参考源码没有修改。
 
 可以查看：

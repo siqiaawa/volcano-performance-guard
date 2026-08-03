@@ -43,7 +43,7 @@ Release 标签，不是 Volcano 候选版本号：
 放置，并最终在 WSL 或 Linux 服务器执行 `sha256sum` 校验。
 
 ```bash
-export PREP_ROOT=$PWD/volcano-trial
+export PREP_ROOT=volcano-trial
 mkdir -p "$PREP_ROOT"
 
 git clone --branch main --single-branch \
@@ -58,6 +58,10 @@ git clone --branch main --single-branch \
   https://github.com/siqiaawa/volcano-test-version.git \
   "$PREP_ROOT/volcano-test-version"
 ```
+
+候选仓库这一步故意不使用 `--depth 1`：恢复学长包的参考源码 Git 元数据需要读取
+其中的祖先提交 `1cb0a6359032ad5214143e0c22672f15ac7965c2`。候选仓库只作为本地
+历史来源，不会被修改。
 
 固定本轮目录和候选身份：
 
@@ -204,8 +208,12 @@ test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
 
 ### 5. 验证并安装学长离线包
 
+GitHub 不会保存嵌套的 `source/volcano/.git`。先从已经拉取的候选仓库历史恢复参考
+提交的独立 shallow Git 元数据；该命令会验证现有参考源码，不会改写工作树：
+
 ```bash
 cd "$BUNDLE_DIR"
+./restore-source-git.sh --source-repo "$CANDIDATE_DIR"
 ./verify-bundle.sh
 ./install-offline.sh
 
@@ -215,7 +223,9 @@ docker image inspect volcano-offline-runner:1cb0a6359032ad5214143e0c22672f15ac79
 docker image inspect kindest/node:v1.36.1
 ```
 
-`verify-bundle.sh` 必须全部通过；registry 探针必须成功。随后先执行学长包最小入口：
+如果省略恢复步骤，Git 会向父目录查找并把外层 bundle 的 `bd9efc...` 等提交误当成
+参考源码提交。`verify-bundle.sh` 现在会明确拒绝缺少独立 `.git` 的目录，而不会继续
+误判。校验必须全部通过，registry 探针必须成功。随后先执行学长包最小入口：
 
 ```bash
 ./run-env.sh kind delete cluster --name integration 2>/dev/null || true
