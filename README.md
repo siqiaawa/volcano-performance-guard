@@ -123,6 +123,22 @@ done
 最后一条命令的所有项目必须为 `OK`。更详细的文件名见学长包中的
 `images/README.md` 和 `charts/README.md`。
 
+如果 bundle 是用 Windows 原生 Git 检出的，在公司电脑 PowerShell 中先把校验清单
+强制恢复为仓库规定的 LF 版本，再传服务器：
+
+```powershell
+Set-Location 'G:\~CODE\2026_7_29TOOLS\volcano-offline-e2e-bundle'
+git pull --ff-only origin main
+git status --short
+git -c core.autocrlf=false checkout-index --force -- SHA256SUMS
+
+$bytes = [IO.File]::ReadAllBytes((Resolve-Path '.\SHA256SUMS'))
+if ($bytes -contains 13) { throw 'SHA256SUMS still contains CR bytes' }
+```
+
+执行 `checkout-index` 前，`git status --short` 必须为空。传输使用 U 盘、浏览器、
+`scp` 或 `rsync` 的原样/二进制模式，不要使用 FTP ASCII mode。
+
 ### 3. 下载并还原 Performance Guard Release
 
 ```bash
