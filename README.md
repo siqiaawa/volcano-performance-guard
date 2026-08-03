@@ -34,8 +34,16 @@
 
 ### 1. 联网准备机拉取三个仓库
 
-准备机需要 `git`、GitHub CLI `gh` 和 `sha256sum`。以下两个 `v0.1.0` 是各自
-仓库的 Release 标签，不是 Volcano 候选版本号：
+准备机需要 `git`、GitHub CLI `gh` 和 `sha256sum`。仓库或 Release 为私有时，先用
+有读取权限的 GitHub 账号登录；不要把 Personal Access Token 写进脚本或 README：
+
+```bash
+gh auth login
+gh auth status
+gh auth setup-git
+```
+
+以下两个 `v0.1.0` 是各自仓库的 Release 标签，不是 Volcano 候选版本号：
 
 ```bash
 export PREP_ROOT=$PWD/volcano-trial
