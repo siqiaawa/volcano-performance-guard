@@ -32,7 +32,7 @@ d57d10f47129b11f12d875de1195a42c0a53270f
   volcano-test-version/
 ~~~
 
-The bundle Release asset
+The bundle `v0.1.1` Release asset
 `volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz` must be
 placed at `volcano-offline-e2e-bundle/metadata/`. It is the reference package's
 own Git metadata and is not obtained from `volcano-test-version`.

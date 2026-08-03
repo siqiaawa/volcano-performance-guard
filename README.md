@@ -40,8 +40,9 @@
 ### 1. 联网准备机拉取三个仓库
 
 准备机需要 `git`、`curl` 和 `sha256sum`。三个仓库和对应 Release 均为公开内容，
-不需要 `gh`、GitHub 登录或 Personal Access Token。以下两个 `v0.1.0` 是各自仓库的
-Release 标签，不是 Volcano 候选版本号：
+不需要 `gh`、GitHub 登录或 Personal Access Token。学长离线包使用新的 `v0.1.1`
+Release，Performance Guard 的性能资产仍使用 `v0.1.0`；这些 Release 标签都不是
+Volcano 候选版本号：
 
 以下命令按 WSL/Linux Bash 编写。纯 Windows PowerShell 中应使用 `curl.exe` 而不是
 可能被映射为 `Invoke-WebRequest` 的 `curl` 别名；也可以用浏览器下载后按后面的目录树
@@ -93,7 +94,7 @@ test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
 
 任一 `test` 失败都要停止，不能用其他候选源码配合当前固化资产。
 学长包和 Performance Guard 的代码都从 `main` 拉取，以获得当前下载说明和服务器
-验证修正；两个仓库的二进制资产仍分别从各自的 `v0.1.0` Release 下载，并由固定
+验证修正；学长包资产从 `v0.1.1`、Performance Guard 资产从 `v0.1.0` Release 下载，并由固定
 文件名、候选 commit 与校验清单绑定。
 
 ### 2. 下载并还原学长包 Release
@@ -115,16 +116,16 @@ for asset in \
   10-pytorch-e2e.tar \
   11-ray-e2e.tar; do
   download_release_asset \
-    siqiaawa/volcano-offline-e2e-bundle v0.1.0 "$asset" "$BUNDLE_DIR/images/$asset"
+    siqiaawa/volcano-offline-e2e-bundle v0.1.1 "$asset" "$BUNDLE_DIR/images/$asset"
 done
 
 for asset in kwok-chart-0.3.0.tgz kwok-stage-fast-chart-0.3.0.tgz; do
   download_release_asset \
-    siqiaawa/volcano-offline-e2e-bundle v0.1.0 "$asset" "$BUNDLE_DIR/charts/$asset"
+    siqiaawa/volcano-offline-e2e-bundle v0.1.1 "$asset" "$BUNDLE_DIR/charts/$asset"
 done
 
 download_release_asset \
-  siqiaawa/volcano-offline-e2e-bundle v0.1.0 \
+  siqiaawa/volcano-offline-e2e-bundle v0.1.1 \
   volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz \
   "$BUNDLE_DIR/metadata/volcano-reference-git-1cb0a6359032ad5214143e0c22672f15ac7965c2.tar.gz"
 
