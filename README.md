@@ -34,16 +34,13 @@
 
 ### 1. 联网准备机拉取三个仓库
 
-准备机需要 `git`、GitHub CLI `gh` 和 `sha256sum`。仓库或 Release 为私有时，先用
-有读取权限的 GitHub 账号登录；不要把 Personal Access Token 写进脚本或 README：
+准备机需要 `git`、`curl` 和 `sha256sum`。三个仓库和对应 Release 均为公开内容，
+不需要 `gh`、GitHub 登录或 Personal Access Token。以下两个 `v0.1.0` 是各自仓库的
+Release 标签，不是 Volcano 候选版本号：
 
-```bash
-gh auth login
-gh auth status
-gh auth setup-git
-```
-
-以下两个 `v0.1.0` 是各自仓库的 Release 标签，不是 Volcano 候选版本号：
+以下命令按 WSL/Linux Bash 编写。纯 Windows PowerShell 中应使用 `curl.exe` 而不是
+可能被映射为 `Invoke-WebRequest` 的 `curl` 别名；也可以用浏览器下载后按后面的目录树
+放置，并最终在 WSL 或 Linux 服务器执行 `sha256sum` 校验。
 
 ```bash
 export PREP_ROOT=$PWD/volcano-trial
@@ -72,6 +69,14 @@ export COMMIT=d57d10f47129b11f12d875de1195a42c0a53270f
 export BENCHMARK_ASSET_DIR=$GUARD_DIR/.work/offline-assets/benchmark-tools/$COMMIT
 export GO_MOD_ASSET_DIR=$GUARD_DIR/offline-assets/go-mod/$COMMIT
 
+download_release_asset() {
+  local repository="$1" tag="$2" asset="$3" destination="$4"
+  mkdir -p "$(dirname "$destination")"
+  curl -fL --retry 3 --retry-delay 2 \
+    -o "$destination" \
+    "https://github.com/$repository/releases/download/$tag/$asset"
+}
+
 test "$(git -C "$CANDIDATE_DIR" rev-parse HEAD)" = "$COMMIT"
 test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
 ```
@@ -83,18 +88,29 @@ Performance Guard 的代码从 `main` 拉取，以获得当前服务器验证说
 ### 2. 下载并还原学长包 Release
 
 GitHub Release 附件是扁平的。7 个镜像 tar 放进 `images/`，两个 Chart 放进
-`charts/`，文件名保持不变且不要解压：
+`charts/`，文件名保持不变且不要解压。下面继续使用第 1 步定义的
+`download_release_asset` 函数；如果打开了新的 shell，需要先重新执行第 1 步的变量和
+函数定义：
 
 ```bash
 mkdir -p "$BUNDLE_DIR/images" "$BUNDLE_DIR/charts"
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-offline-e2e-bundle \
-  --pattern '*.tar' --dir "$BUNDLE_DIR/images"
+for asset in \
+  00-runner.tar \
+  01-kind-node.tar \
+  02-volcano-components.tar \
+  03-small-e2e-and-registry.tar \
+  04-mpi-tensorflow-e2e.tar \
+  10-pytorch-e2e.tar \
+  11-ray-e2e.tar; do
+  download_release_asset \
+    siqiaawa/volcano-offline-e2e-bundle v0.1.0 "$asset" "$BUNDLE_DIR/images/$asset"
+done
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-offline-e2e-bundle \
-  --pattern '*.tgz' --dir "$BUNDLE_DIR/charts"
+for asset in kwok-chart-0.3.0.tgz kwok-stage-fast-chart-0.3.0.tgz; do
+  download_release_asset \
+    siqiaawa/volcano-offline-e2e-bundle v0.1.0 "$asset" "$BUNDLE_DIR/charts/$asset"
+done
 
 (cd "$BUNDLE_DIR" && sha256sum -c SHA256SUMS)
 ```
@@ -107,22 +123,20 @@ gh release download v0.1.0 \
 ```bash
 mkdir -p "$BENCHMARK_ASSET_DIR/charts" "$GO_MOD_ASSET_DIR"
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-performance-guard \
-  --pattern 'benchmark-images.tar' \
-  --pattern 'manifest.json' \
-  --pattern 'SHA256SUMS' \
-  --dir "$BENCHMARK_ASSET_DIR"
+for asset in benchmark-images.tar manifest.json SHA256SUMS; do
+  download_release_asset \
+    siqiaawa/volcano-performance-guard v0.1.0 "$asset" "$BENCHMARK_ASSET_DIR/$asset"
+done
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-performance-guard \
-  --pattern '*.tgz' \
-  --dir "$BENCHMARK_ASSET_DIR/charts"
+for asset in kwok-chart-0.3.0.tgz kwok-stage-fast-chart-0.3.0.tgz; do
+  download_release_asset \
+    siqiaawa/volcano-performance-guard v0.1.0 "$asset" "$BENCHMARK_ASSET_DIR/charts/$asset"
+done
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-performance-guard \
-  --pattern 'go-mod-supplement.tar.gz' \
-  --dir "$GO_MOD_ASSET_DIR"
+for asset in go-mod-supplement.tar.gz go-mod-supplement.tar.gz.sha256; do
+  download_release_asset \
+    siqiaawa/volcano-performance-guard v0.1.0 "$asset" "$GO_MOD_ASSET_DIR/$asset"
+done
 
 (cd "$BENCHMARK_ASSET_DIR" && sha256sum -c SHA256SUMS)
 (cd "$GO_MOD_ASSET_DIR" && sha256sum -c go-mod-supplement.tar.gz.sha256)

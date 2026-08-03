@@ -34,7 +34,8 @@ is generated under the ignored `.work/` tree and must be reconstructed from
 the Release assets.
 
 When using a browser, place the downloaded files according to the tree above.
-With GitHub CLI, run these commands from the repository root:
+Because both repositories are public, `gh` is not required. Run these commands
+from the repository root with ordinary HTTPS and `curl`:
 
 ```bash
 export COMMIT=d57d10f47129b11f12d875de1195a42c0a53270f
@@ -43,28 +44,32 @@ export GO_MOD_ASSET_DIR=offline-assets/go-mod/$COMMIT
 
 mkdir -p "$BENCHMARK_ASSET_DIR/charts" "$GO_MOD_ASSET_DIR"
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-performance-guard \
-  --pattern 'benchmark-images.tar' \
-  --pattern 'manifest.json' \
-  --pattern 'SHA256SUMS' \
-  --dir "$BENCHMARK_ASSET_DIR"
+download_release_asset() {
+  local repository="$1" tag="$2" asset="$3" destination="$4"
+  mkdir -p "$(dirname "$destination")"
+  curl -fL --retry 3 --retry-delay 2 \
+    -o "$destination" \
+    "https://github.com/$repository/releases/download/$tag/$asset"
+}
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-performance-guard \
-  --pattern '*.tgz' \
-  --dir "$BENCHMARK_ASSET_DIR/charts"
+for asset in benchmark-images.tar manifest.json SHA256SUMS; do
+  download_release_asset \
+    siqiaawa/volcano-performance-guard v0.1.0 "$asset" "$BENCHMARK_ASSET_DIR/$asset"
+done
 
-gh release download v0.1.0 \
-  --repo siqiaawa/volcano-performance-guard \
-  --pattern 'go-mod-supplement.tar.gz' \
-  --dir "$GO_MOD_ASSET_DIR"
+for asset in kwok-chart-0.3.0.tgz kwok-stage-fast-chart-0.3.0.tgz; do
+  download_release_asset \
+    siqiaawa/volcano-performance-guard v0.1.0 "$asset" "$BENCHMARK_ASSET_DIR/charts/$asset"
+done
+
+for asset in go-mod-supplement.tar.gz go-mod-supplement.tar.gz.sha256; do
+  download_release_asset \
+    siqiaawa/volcano-performance-guard v0.1.0 "$asset" "$GO_MOD_ASSET_DIR/$asset"
+done
 ```
 
-The checksum file is also attached to the Release for standalone verification,
-but a cloned checkout already contains the same reviewed file. The command
-above therefore downloads only the missing archive and does not overwrite
-tracked metadata.
+The checksum file is also attached to the Release for standalone verification.
+Downloading it over the identical tracked file is intentional.
 
 Verify both independent asset sets before running any import:
 

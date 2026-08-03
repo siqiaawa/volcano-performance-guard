@@ -71,7 +71,7 @@ offline-assets/go-mod/d57d10f47129b11f12d875de1195a42c0a53270f/
   missing-modules.txt
 ~~~
 
-其中 Go module 目录里的后四个元数据文件已经随 Git 仓库提供，Release 下载后只需补入 `go-mod-supplement.tar.gz`；同时上传其 `.sha256` 文件便于独立核对。Benchmark 目录则由 Release 附件完整还原。准确的浏览器放置规则和 `gh release download` 命令见 `offline-assets/README.md`。
+其中 Go module 目录里的后四个元数据文件已经随 Git 仓库提供，Release 下载后补入 `go-mod-supplement.tar.gz` 和 `.sha256` 文件即可。公开仓库可以直接使用 `curl` 下载 Release 附件，也可以用浏览器下载后按目录树放置；准确命令见 `offline-assets/README.md`。
 
 当前体积是合理的：Performance Guard 源码和依赖约 43 MiB，vendored Python 依赖约 2.3 MiB，Benchmark 镜像归档约 800 MiB，候选 Go module 增量包约 40 MiB。工具镜像包含 Python 3.13.5、PyYAML 6.0.1、jsonschema 4.10.3 和 Docker CLI，所以服务器不需要预装 Python；服务器仍需要 Docker daemon、Bash、Git、Make。
 
