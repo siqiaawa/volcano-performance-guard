@@ -25,109 +25,396 @@
 
 当前 commit 的 Go module 补充包固化在 `offline-assets/go-mod/d57d10f47129b11f12d875de1195a42c0a53270f/`。执行 `make import-candidate-deps` 后，可以在无网络条件下构建派生 Runner；该命令会校验补充包 SHA-256、候选 commit 和离线包的基础 Runner 身份。固定候选版本的离线构建、部署和 timestamp smoke 使用这个 Runner。其他候选 commit 必须使用独立目录和新的补充包，不能复用此目录。
 
-## 快速检查
+## 从仓库拉取开始的完整验证
 
-在 WSL 中执行：
+下面按实际执行顺序验证两个交付仓库：先验证
+`volcano-offline-e2e-bundle`，再用 `volcano-performance-guard` 验证固定的
+`volcano-test-version` 候选源码。联网准备和离线服务器执行必须分开；离线服务器不得
+用 `docker pull`、Go proxy 或在线 Helm 仓库补救缺失资产。
+
+### 1. 联网准备机拉取三个仓库
+
+准备机需要 `git`、GitHub CLI `gh` 和 `sha256sum`。以下两个 `v0.1.0` 是各自
+仓库的 Release 标签，不是 Volcano 候选版本号：
 
 ```bash
-cd /mnt/g/~CODE/2026_7_29TOOLS/volcano-performance-guard
+export PREP_ROOT=$PWD/volcano-trial
+mkdir -p "$PREP_ROOT"
 
-make inspect-bundle \
-  BUNDLE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-offline-e2e-bundle
+git clone --branch v0.1.0 --depth 1 \
+  https://github.com/siqiaawa/volcano-offline-e2e-bundle.git \
+  "$PREP_ROOT/volcano-offline-e2e-bundle"
 
-make candidate-preflight \
-  BUNDLE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-offline-e2e-bundle \
-  CANDIDATE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-master \
-  CANDIDATE_EXPECTED_COMMIT=d57d10f47129b11f12d875de1195a42c0a53270f
+git clone --branch main --single-branch \
+  https://github.com/siqiaawa/volcano-performance-guard.git \
+  "$PREP_ROOT/volcano-performance-guard"
 
-make contract-demo
-make test
+git clone --branch main --single-branch \
+  https://github.com/siqiaawa/volcano-test-version.git \
+  "$PREP_ROOT/volcano-test-version"
 ```
 
-目标服务器的完整试验顺序、学长离线包验收、候选构建部署、监控 Benchmark、结果归档和清理步骤见 [`docs/server-trial-guide.md`](docs/server-trial-guide.md)。
+固定本轮目录和候选身份：
 
-`inspect-bundle` 只读取离线包，不加载镜像、创建集群或修改参考源码。输出写入 `.work/offline-bundle.detected.yaml`。
+```bash
+export BUNDLE_DIR=$PREP_ROOT/volcano-offline-e2e-bundle
+export GUARD_DIR=$PREP_ROOT/volcano-performance-guard
+export CANDIDATE_DIR=$PREP_ROOT/volcano-test-version
+export COMMIT=d57d10f47129b11f12d875de1195a42c0a53270f
+export BENCHMARK_ASSET_DIR=$GUARD_DIR/.work/offline-assets/benchmark-tools/$COMMIT
+export GO_MOD_ASSET_DIR=$GUARD_DIR/offline-assets/go-mod/$COMMIT
 
-`candidate-preflight` 将候选源码只读挂载到离线 Runner，并使用 Docker
-`--network none`、`GOPROXY=off` 和 `GOSUMDB=off` 验证 Go 依赖缓存；同时检查
-候选组件 Dockerfile 引用的全部基础镜像。任一资产缺失都会明确失败，不会访问公网。
+test "$(git -C "$CANDIDATE_DIR" rev-parse HEAD)" = "$COMMIT"
+test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
+```
 
-第一次在离线机器上使用当前固化候选版本时，先导入仓库内补充包：
+任一 `test` 失败都要停止，不能用其他候选源码配合当前固化资产。
+Performance Guard 的代码从 `main` 拉取，以获得当前服务器验证说明和修正；其二进制
+资产仍从 `v0.1.0` Release 下载，并由候选 commit 与校验清单绑定。
+
+### 2. 下载并还原学长包 Release
+
+GitHub Release 附件是扁平的。7 个镜像 tar 放进 `images/`，两个 Chart 放进
+`charts/`，文件名保持不变且不要解压：
+
+```bash
+mkdir -p "$BUNDLE_DIR/images" "$BUNDLE_DIR/charts"
+
+gh release download v0.1.0 \
+  --repo siqiaawa/volcano-offline-e2e-bundle \
+  --pattern '*.tar' --dir "$BUNDLE_DIR/images"
+
+gh release download v0.1.0 \
+  --repo siqiaawa/volcano-offline-e2e-bundle \
+  --pattern '*.tgz' --dir "$BUNDLE_DIR/charts"
+
+(cd "$BUNDLE_DIR" && sha256sum -c SHA256SUMS)
+```
+
+最后一条命令的所有项目必须为 `OK`。更详细的文件名见学长包中的
+`images/README.md` 和 `charts/README.md`。
+
+### 3. 下载并还原 Performance Guard Release
+
+```bash
+mkdir -p "$BENCHMARK_ASSET_DIR/charts" "$GO_MOD_ASSET_DIR"
+
+gh release download v0.1.0 \
+  --repo siqiaawa/volcano-performance-guard \
+  --pattern 'benchmark-images.tar' \
+  --pattern 'manifest.json' \
+  --pattern 'SHA256SUMS' \
+  --dir "$BENCHMARK_ASSET_DIR"
+
+gh release download v0.1.0 \
+  --repo siqiaawa/volcano-performance-guard \
+  --pattern '*.tgz' \
+  --dir "$BENCHMARK_ASSET_DIR/charts"
+
+gh release download v0.1.0 \
+  --repo siqiaawa/volcano-performance-guard \
+  --pattern 'go-mod-supplement.tar.gz' \
+  --dir "$GO_MOD_ASSET_DIR"
+
+(cd "$BENCHMARK_ASSET_DIR" && sha256sum -c SHA256SUMS)
+(cd "$GO_MOD_ASSET_DIR" && sha256sum -c go-mod-supplement.tar.gz.sha256)
+```
+
+Benchmark 校验必须包含 `benchmark-images.tar`、`manifest.json` 和两个
+`charts/*.tgz`。Go module 校验必须报告 `go-mod-supplement.tar.gz: OK`。完整目录树见
+[`offline-assets/README.md`](offline-assets/README.md)。
+
+### 4. 传输到离线服务器并检查环境
+
+将准备好的 `volcano-trial/` 整体通过 U 盘、内网文件服务或 `rsync` 复制到服务器，
+不要只复制 Git 源码而漏掉 Release 附件。建议最终目录如下：
+
+```text
+/srv/volcano-trial/
+  volcano-offline-e2e-bundle/
+  volcano-performance-guard/
+  volcano-test-version/
+```
+
+在服务器设置路径并检查资源：
+
+```bash
+export TRIAL_ROOT=/srv/volcano-trial
+export BUNDLE_DIR=$TRIAL_ROOT/volcano-offline-e2e-bundle
+export GUARD_DIR=$TRIAL_ROOT/volcano-performance-guard
+export CANDIDATE_DIR=$TRIAL_ROOT/volcano-test-version
+export COMMIT=d57d10f47129b11f12d875de1195a42c0a53270f
+export BENCHMARK_ASSET_DIR=$GUARD_DIR/.work/offline-assets/benchmark-tools/$COMMIT
+export GO_MOD_ASSET_DIR=$GUARD_DIR/offline-assets/go-mod/$COMMIT
+
+uname -m
+docker version
+docker info
+command -v bash
+command -v git
+command -v make
+command -v docker
+command -v curl
+command -v sha256sum
+df -h "$TRIAL_ROOT"
+free -h
+```
+
+要求 `uname -m` 为 `x86_64`，Docker daemon 可用，至少有 60 GiB 可用磁盘；建议
+8 vCPU、16 GiB 内存以上。宿主机不要求安装 Python。通过 Windows 或压缩包传输后，
+恢复脚本执行权限：
+
+```bash
+find "$BUNDLE_DIR" -type f -name '*.sh' -exec chmod +x {} +
+find "$GUARD_DIR" -type f -name '*.sh' -exec chmod +x {} +
+```
+
+再次确认源码和资产没有传错：
+
+```bash
+test "$(git -C "$CANDIDATE_DIR" rev-parse HEAD)" = "$COMMIT"
+test -z "$(git -C "$CANDIDATE_DIR" status --porcelain)"
+(cd "$BUNDLE_DIR" && sha256sum -c SHA256SUMS)
+(cd "$BENCHMARK_ASSET_DIR" && sha256sum -c SHA256SUMS)
+(cd "$GO_MOD_ASSET_DIR" && sha256sum -c go-mod-supplement.tar.gz.sha256)
+```
+
+### 5. 验证并安装学长离线包
+
+```bash
+cd "$BUNDLE_DIR"
+./verify-bundle.sh
+./install-offline.sh
+
+curl -fsS http://localhost:15000/v2/
+docker ps --filter name=volcano-offline-registry
+docker image inspect volcano-offline-runner:1cb0a6359032ad5214143e0c22672f15ac7965c2
+docker image inspect kindest/node:v1.36.1
+```
+
+`verify-bundle.sh` 必须全部通过；registry 探针必须成功。随后先执行学长包最小入口：
+
+```bash
+./run-env.sh kind delete cluster --name integration 2>/dev/null || true
+./make-e2e.sh
+```
+
+最小入口返回 0 后，再根据服务器资源决定是否运行完整矩阵：
+
+```bash
+./run-full-e2e.sh
+./run-env.sh kind delete cluster --name integration 2>/dev/null || true
+```
+
+完整矩阵中的每个目标必须记录 `pass`、`fail` 或 `timeout`；未完成不能写成通过。
+
+### 6. 导入 Benchmark 资产并验证 Guard 自身
+
+先加载 Release 中的工具镜像。这样即使宿主机没有 Python，后续契约、YAML、指标和
+报告脚本也能在固定工具容器中运行：
+
+```bash
+cd "$GUARD_DIR"
+
+make import-benchmark-assets \
+  BUNDLE_DIR="$BUNDLE_DIR" \
+  CANDIDATE_EXPECTED_COMMIT="$COMMIT" \
+  CANDIDATE_BENCHMARK_ASSET_DIR="$BENCHMARK_ASSET_DIR"
+
+export PERFORMANCE_GUARD_TOOLS_IMAGE=localhost:15000/volcanosh/performance-guard-tools:$COMMIT
+docker image inspect "$PERFORMANCE_GUARD_TOOLS_IMAGE"
+
+make inspect-bundle BUNDLE_DIR="$BUNDLE_DIR"
+make test
+make contract-demo
+```
+
+成功标准是导入 6 个 Benchmark 镜像、`make test` 全部通过、生成
+`.work/offline-bundle.detected.yaml` 和 `.work/contract-demo/run-plan.json`。
+
+### 7. 导入候选 Go 依赖并执行断网预检
 
 ```bash
 make import-candidate-deps \
-  BUNDLE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-offline-e2e-bundle
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_EXPECTED_COMMIT="$COMMIT" \
+  CANDIDATE_DEPS_ASSET_DIR="$GO_MOD_ASSET_DIR"
+
+docker image inspect volcano-candidate-runner:$COMMIT \
+  --format '{{.Id}} {{index .Config.Labels "io.volcano.performance-guard.candidate.commit"}}'
+
+make candidate-preflight \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_EXPECTED_COMMIT="$COMMIT" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT
 ```
 
-随后 `candidate-preflight`、`candidate-build-binaries`、`candidate-build-images`、`candidate-deploy` 与 `candidate-timestamp-profile` 默认使用 `volcano-candidate-runner:d57d10f47129b11f12d875de1195a42c0a53270f`。更换候选 commit 时，必须显式同时覆盖 `CANDIDATE_EXPECTED_COMMIT`、`CANDIDATE_DEPS_ASSET_DIR` 和 `CANDIDATE_RUNNER_IMAGE`。
+预检必须显示候选源码干净、Go 依赖离线可用、基础镜像齐全。服务器上发现缺失依赖时
+必须停止；只能回到联网准备机执行 `make candidate-prepare-deps ALLOW_NETWORK=1`，为
+新 commit 生成独立增量包，不能在服务器临时联网下载。
 
-对于尚未固化依赖的新候选 commit，可以用一个入口自动完成依赖发现和增量补充：
-
-```bash
-make candidate-prepare-deps \
-  CANDIDATE_DIR=/mnt/g/path/to/volcano \
-  CANDIDATE_EXPECTED_COMMIT=<candidate-commit>
-
-# 只有发现缺失模块并确认允许联网下载时才执行：
-make candidate-prepare-deps \
-  CANDIDATE_DIR=/mnt/g/path/to/volcano \
-  CANDIDATE_EXPECTED_COMMIT=<candidate-commit> \
-  ALLOW_NETWORK=1
-source .work/candidate-runner.env
-```
-
-该入口先用学长包 Runner 在断网条件下预检；在线阶段只下载预检报告列出的缺失
-`path@version` 模块，随后构建并校验绑定候选 commit 的派生 Runner，再次以
-`Docker --network none` 完成预检。如果二次 Go 解析发现新的传递依赖，入口会合并
-列表并重新打包，最多迭代五轮；它不会把新版本依赖写入学长包，也不会修改候选源码。
-
-`contract-demo` 只使用仓库内 fixture，验证环境、候选发布、Profile、单轮指标和聚合指标契约，并生成 dry-run 执行计划。它不会调用 Docker、Helm 或 kubectl。
-
-## 候选部署与 Timestamp Smoke
-
-在候选的依赖预检、二进制和镜像构建已经完成后，以下入口会发布候选镜像，创建由 marker 保护的专用 Kind 集群，并从候选 checkout 的 Helm Chart 部署组件：
+### 8. 构建并发布候选组件
 
 ```bash
+make candidate-build-binaries \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_EXPECTED_COMMIT="$COMMIT" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT
+
+make candidate-build-audit-exporter \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_EXPECTED_COMMIT="$COMMIT" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT
+
+make candidate-build-images \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR"
+
 make candidate-publish-images \
-  CANDIDATE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-master \
-  CANDIDATE_BUILD_DIR=.work/candidates/<candidate-commit>
-
-make candidate-create-cluster candidate-deploy candidate-smoke \
-  CANDIDATE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-master \
-  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:<candidate-commit>
-
-make candidate-timestamp-profile \
-  CANDIDATE_DIR=/mnt/g/~CODE/2026_7_29TOOLS/volcano-master \
-  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:<candidate-commit> \
-  TIMESTAMP_PROFILE=profiles/offline-timestamp-smoke.yaml
+  CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_BUILD_DIR="$GUARD_DIR/.work/candidates/build"
 ```
 
-`candidate-timestamp-profile` uses `busybox:latest` from the verified base bundle registry and gathers `Created -> PodScheduled` timestamps plus kubelet summary CPU/memory samples. The timestamp source is second-precision, so its latency percentiles are explicitly marked `latencyGateEligible: false`; it is a functional and throughput smoke, not a substitute for the audit-exporter/Prometheus performance gate.
+检查 `.work/candidates/build/build-metadata.env` 和 `registry-images.env`。所有组件的
+tag、label 和 digest 必须绑定同一个 `$COMMIT`。
 
-社区 Benchmark 的最小离线路径使用：
+### 9. 创建候选 Smoke 集群并部署
+
+```bash
+make candidate-create-cluster \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke
+
+make candidate-deploy \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke
+
+make candidate-smoke \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke
+```
+
+Smoke 必须验证候选 image ID、候选 Helm 部署、Volcano 调度 Job、本地 registry 命中
+以及 Kind 节点公网 IPv4 阻断。
+
+### 10. 运行社区 Pod、Gang 和 Timestamp Benchmark
 
 ```bash
 make candidate-community-benchmark \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
   CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke \
   COMMUNITY_SCENARIO=pod COMMUNITY_COUNT=10 COMMUNITY_SCHEDULER=volcano
 
 make candidate-community-benchmark \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
   CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke \
-  COMMUNITY_SCENARIO=gang COMMUNITY_COUNT=10 COMMUNITY_SCHEDULER=volcano \
-  COMMUNITY_USE_KWOK=1
+  CANDIDATE_BENCHMARK_ASSET_DIR="$BENCHMARK_ASSET_DIR" \
+  COMMUNITY_SCENARIO=gang COMMUNITY_COUNT=10 \
+  COMMUNITY_SCHEDULER=volcano COMMUNITY_USE_KWOK=1
+
+make candidate-timestamp-profile \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke
 ```
 
-`COMMUNITY_USE_KWOK=1` 只使用资产包内的 KWOK Chart，不调用候选源码中的 GitHub manifest URL。结果写入 `.work/reports/<cluster>/community-benchmark/`，包括：
+重点检查 `.work/reports/volcano-candidate-smoke/community-benchmark/result.json` 和
+`summary.md`。Timestamp 和普通 Pod 状态时间戳只有秒级精度，必须保持
+`latencyGateEligible=false`，不能作为正式延迟门禁。
 
-- 上游 `go test -json` 原始事件和可读测试日志；
-- 测试结束、清理之前采集的 Benchmark Pod/VCJob JSON；
-- scheduler 测试前后状态；
-- 包含延迟分位数、提交到完成耗时、Pod/s 吞吐、调度率、失败/待调度数量和 scheduler 重启增量的 `result.json`；
-- 人工可读的 `summary.md`。
+### 11. 运行 Audit 监控 Benchmark
 
-Adapter 通过上游已有的 `DRY_RUN=true` 生命周期开关临时保留带 `volcano.sh/benchmark=true` 标签的资源，采集完成后仍主动清理；候选源码不会被修改。Pod 延迟来自 Kubernetes 状态时间戳，只有秒级精度，`result.json` 固定标记 `latencyGateEligible: false`。该路径可用于离线功能、吞吐和粗粒度性能检测；精确 latency gate 仍要求带 API Server audit logging 的独立集群。
+Audit 集群是独立集群。创建后必须先把候选 Volcano 部署到这个集群，再安装监控：
 
-`make package-benchmark-assets ALLOW_NETWORK=1 INCLUDE_OPTIONAL=1` 已用于生成完整监控资产包，`make import-benchmark-assets` 已在无公网运行时校验并导入本地 registry。该命令会先加载包含 `performance-guard-tools` 的归档，再通过 Docker socket 执行导入校验；离线工具容器不依赖宿主机 Python。跨机器交付时必须保留该 commit 目录中的 `manifest.json`、`SHA256SUMS`、`benchmark-images.tar`、两个 KWOK Chart 和 `imported-manifest.json`；当前目录是本机工作区制品，尚未发布为独立 Release 压缩包。`make scan-benchmark-deps` 仍可用于后续候选版本的依赖差集扫描。`make compare-baseline BASELINE=/approved/baseline.json` 只比较候选聚合结果和独立审批的稳定 baseline，并写出 JSON、Markdown、JUnit 和 HTML 报告。默认 `configs/timestamp-thresholds.example.yaml` 刻意排除延迟分位数；只有导入并审批了亚秒级测量栈后，才可使用包含 latency gate 的阈值。
+```bash
+make candidate-create-audit-cluster \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_BENCHMARK_ASSET_DIR="$BENCHMARK_ASSET_DIR" \
+  CANDIDATE_AUDIT_CLUSTER_NAME=volcano-candidate-audit
+
+make candidate-deploy \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-audit \
+  CANDIDATE_CLUSTER_STATE="$GUARD_DIR/.work/clusters/volcano-candidate-audit" \
+  CANDIDATE_REPORT_DIR="$GUARD_DIR/.work/reports/volcano-candidate-audit/deploy"
+
+make candidate-install-monitoring \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_BENCHMARK_ASSET_DIR="$BENCHMARK_ASSET_DIR" \
+  CANDIDATE_AUDIT_CLUSTER_NAME=volcano-candidate-audit
+
+make candidate-audit-community-benchmark \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_AUDIT_CLUSTER_NAME=volcano-candidate-audit \
+  COMMUNITY_SCENARIO=pod COMMUNITY_COUNT=10 COMMUNITY_SCHEDULER=volcano
+```
+
+Prometheus、Grafana、kube-state-metrics 和 Audit Exporter 必须 rollout 成功；Audit
+Exporter metrics 必须包含 `pod_scheduling_latency_seconds`。
+
+### 12. 运行候选上游 E2E
+
+候选 E2E 使用独立的 1 control-plane、4 worker 集群：
+
+```bash
+make candidate-create-e2e-cluster \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_E2E_CLUSTER_NAME=volcano-candidate-e2e
+
+make candidate-e2e \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_BENCHMARK_ASSET_DIR="$BENCHMARK_ASSET_DIR" \
+  CANDIDATE_E2E_CLUSTER_NAME=volcano-candidate-e2e \
+  E2E_SUITE=SCHEDULINGBASE
+```
+
+`SCHEDULINGBASE` 或其他套件超时必须记录为 `incomplete/timeout`，不能标记为通过或
+写入正式 baseline。完整矩阵可按服务器资源逐个运行，不要求一次并行完成。
+
+### 13. 比较正式基线、归档结果并清理
+
+只有已经独立审批的多轮稳定基线才能执行：
+
+```bash
+make compare-baseline BASELINE=/srv/approved/volcano-baseline.json
+```
+
+至少归档 `.work/offline-bundle.detected.yaml`、`.work/candidate-preflight.yaml`、
+`.work/candidates/build/`、`.work/clusters/*/cluster.marker` 和 `.work/reports/`。先复制
+报告，再通过 marker 保护的入口逐个清理：
+
+```bash
+make candidate-cleanup \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-smoke
+
+make candidate-cleanup \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-audit \
+  CANDIDATE_CLUSTER_STATE="$GUARD_DIR/.work/clusters/volcano-candidate-audit"
+
+make candidate-cleanup \
+  BUNDLE_DIR="$BUNDLE_DIR" CANDIDATE_DIR="$CANDIDATE_DIR" \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-e2e \
+  CANDIDATE_CLUSTER_STATE="$GUARD_DIR/.work/clusters/volcano-candidate-e2e"
+```
+
+不要先手工删除 `.work/clusters/*/cluster.marker`，否则会失去安全清理的身份校验。
+更详细的成功判据、失败保留和服务器资源说明见
+[`docs/server-trial-guide.md`](docs/server-trial-guide.md)。
 
 ## 保留边界
 

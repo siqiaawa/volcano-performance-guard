@@ -29,7 +29,7 @@ d57d10f47129b11f12d875de1195a42c0a53270f
 /srv/volcano-trial/
   volcano-offline-e2e-bundle/
   volcano-performance-guard/
-  volcano-master/
+  volcano-test-version/
 ~~~
 
 学长包必须完整复制。它约 3.5 GiB，主要是不可替代的镜像归档，不能删除 images、runner、source、charts 或 manifest。
@@ -81,7 +81,7 @@ offline-assets/go-mod/d57d10f47129b11f12d875de1195a42c0a53270f/
 export TRIAL_ROOT=/srv/volcano-trial
 export BUNDLE_DIR=$TRIAL_ROOT/volcano-offline-e2e-bundle
 export GUARD_DIR=$TRIAL_ROOT/volcano-performance-guard
-export CANDIDATE_DIR=$TRIAL_ROOT/volcano-master
+export CANDIDATE_DIR=$TRIAL_ROOT/volcano-test-version
 export COMMIT=d57d10f47129b11f12d875de1195a42c0a53270f
 export ASSET_DIR=$GUARD_DIR/.work/offline-assets/benchmark-tools/$COMMIT
 
@@ -357,6 +357,13 @@ make candidate-create-audit-cluster \
   CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
   CANDIDATE_AUDIT_CLUSTER_NAME=volcano-candidate-audit
 
+make candidate-deploy \
+  BUNDLE_DIR=$BUNDLE_DIR CANDIDATE_DIR=$CANDIDATE_DIR \
+  CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-audit \
+  CANDIDATE_CLUSTER_STATE=$GUARD_DIR/.work/clusters/volcano-candidate-audit \
+  CANDIDATE_REPORT_DIR=$GUARD_DIR/.work/reports/volcano-candidate-audit/deploy
+
 make candidate-install-monitoring \
   BUNDLE_DIR=$BUNDLE_DIR CANDIDATE_DIR=$CANDIDATE_DIR \
   CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
@@ -369,7 +376,7 @@ make candidate-audit-community-benchmark \
   COMMUNITY_SCENARIO=pod COMMUNITY_COUNT=10 COMMUNITY_SCHEDULER=volcano
 ~~~
 
-Prometheus、Grafana、kube-state-metrics 和 Audit Exporter 必须 rollout 成功，Audit Exporter metrics 必须包含 pod_scheduling_latency_seconds。Audit 报告中的 commit、registry digest 和 cluster marker 必须一致。
+Audit 集群创建后必须先执行上面的 `candidate-deploy`，不能直接跳到监控安装和 Benchmark。Prometheus、Grafana、kube-state-metrics 和 Audit Exporter 必须 rollout 成功，Audit Exporter metrics 必须包含 pod_scheduling_latency_seconds。Audit 报告中的 commit、registry digest 和 cluster marker 必须一致。
 
 ### 7.4 Timestamp 和候选 E2E
 
@@ -440,12 +447,14 @@ Audit 和 E2E 集群分别清理：
 make candidate-cleanup \
   BUNDLE_DIR=$BUNDLE_DIR CANDIDATE_DIR=$CANDIDATE_DIR \
   CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
-  CANDIDATE_CLUSTER_NAME=volcano-candidate-audit
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-audit \
+  CANDIDATE_CLUSTER_STATE=$GUARD_DIR/.work/clusters/volcano-candidate-audit
 
 make candidate-cleanup \
   BUNDLE_DIR=$BUNDLE_DIR CANDIDATE_DIR=$CANDIDATE_DIR \
   CANDIDATE_RUNNER_IMAGE=volcano-candidate-runner:$COMMIT \
-  CANDIDATE_CLUSTER_NAME=volcano-candidate-e2e
+  CANDIDATE_CLUSTER_NAME=volcano-candidate-e2e \
+  CANDIDATE_CLUSTER_STATE=$GUARD_DIR/.work/clusters/volcano-candidate-e2e
 ~~~
 
 清理前先复制报告；清理失败时保留 cluster.marker 和诊断，不要手工删除状态目录后再删除未知集群。
