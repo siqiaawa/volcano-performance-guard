@@ -10,8 +10,8 @@ from typing import Any
 import yaml
 
 
-def image_path(value: str) -> str:
-    return value.removeprefix("localhost:15000/")
+def image_path(value: str, registry_host: str) -> str:
+    return value.removeprefix(registry_host + "/")
 
 
 def main() -> int:
@@ -24,16 +24,17 @@ def main() -> int:
     args = parser.parse_args()
 
     asset = json.loads(args.assets.read_text(encoding="utf-8"))
+    registry_host = asset["registryHost"]
     replacements: dict[str, str] = {}
     for record in asset.get("images", []):
         source = record.get("sourceImage")
         target = record.get("registryImage")
         if isinstance(source, str) and isinstance(target, str):
-            replacements[source] = image_path(target)
+            replacements[source] = image_path(target, registry_host)
             if ":" not in source.rsplit("/", 1)[-1]:
-                replacements[source + ":latest"] = image_path(target)
+                replacements[source + ":latest"] = image_path(target, registry_host)
             if "kube-apiserver-audit-exporter" in source:
-                replacements["volcanosh/kube-apiserver-audit-exporter:dev"] = image_path(target)
+                replacements["volcanosh/kube-apiserver-audit-exporter:dev"] = image_path(target, registry_host)
     if not replacements:
         parser.error("Asset manifest contains no image mappings")
 

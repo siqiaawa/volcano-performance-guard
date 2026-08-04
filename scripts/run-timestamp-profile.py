@@ -16,7 +16,7 @@ from lib.contracts import ContractError, require_valid  # noqa: E402
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run all iterations in an offline Pod timestamp performance profile")
-    parser.add_argument("--bundle-dir", type=Path, required=True)
+    parser.add_argument("--runtime-dir", type=Path, required=True)
     parser.add_argument("--candidate-dir", type=Path, required=True)
     parser.add_argument("--runner-image", required=True)
     parser.add_argument("--state-dir", type=Path, required=True)
@@ -24,6 +24,8 @@ def main() -> int:
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--report-dir", type=Path, required=True)
+    parser.add_argument("--subject-type", choices=("stable", "candidate"), default="candidate")
+    parser.add_argument("--subject-version")
     args = parser.parse_args()
 
     try:
@@ -36,7 +38,7 @@ def main() -> int:
     report_dir = args.report_dir.resolve()
     runs_dir = report_dir / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
-    benchmark = ROOT / "adapters" / "offline-e2e-bundle" / "run-timestamp-benchmark.py"
+    benchmark = ROOT / "adapters" / "runtime" / "run-timestamp-benchmark.py"
     formal_outputs: list[Path] = []
     total = profile["execution"]["warmupRuns"] + profile["execution"]["formalRuns"]
     for iteration in range(1, total + 1):
@@ -44,7 +46,7 @@ def main() -> int:
         output = runs_dir / f"iteration-{iteration}.json"
         command = [
             sys.executable, str(benchmark),
-            "--bundle-dir", str(args.bundle_dir),
+            "--runtime-dir", str(args.runtime_dir),
             "--candidate-dir", str(args.candidate_dir),
             "--runner-image", args.runner_image,
             "--state-dir", str(args.state_dir),
@@ -53,7 +55,10 @@ def main() -> int:
             "--run-id", f"{args.run_id}-{iteration}",
             "--iteration", str(iteration),
             "--output", str(output),
+            "--subject-type", args.subject_type,
         ]
+        if args.subject_version:
+            command.extend(["--subject-version", args.subject_version])
         if warmup:
             command.append("--warmup")
         result = subprocess.run(command, check=False)

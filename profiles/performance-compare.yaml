@@ -1,0 +1,13 @@
+schemaVersion: v1
+name: performance-compare
+cluster:
+  kwokNodes: 0
+workload:
+  type: pod
+  podCount: 100
+  schedulerName: volcano
+execution:
+  warmupRuns: 1
+  formalRuns: 3
+  timeout: 10m
+  aggregation: median

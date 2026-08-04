@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_KIND=${VOLCANO_RUNTIME_REAL_KIND:-/usr/local/bin/kind-real}
+DOCKER_REAL=${VOLCANO_RUNTIME_DOCKER_REAL:-docker-real}
+REGISTRY_NAME=${VOLCANO_RUNTIME_REGISTRY_NAME:-volcano-performance-registry}
+REGISTRY_ADDR=${VOLCANO_RUNTIME_REGISTRY_ADDR:-volcano-performance-registry:5000}
+
+die() { echo "$*" >&2; exit 1; }
+
+if [[ "${1:-}" != create || "${2:-}" != cluster ]]; then
+  exec "$REAL_KIND" "$@"
+fi
+
+args=("$@")
+config_index=""
+config_path=""
+for i in "${!args[@]}"; do
+  case "${args[$i]}" in
+    --config)
+      j=$((i + 1)); ((j < ${#args[@]})) || die "kind --config requires a path"
+      config_index=$j; config_path=${args[$j]}
+      ;;
+    --config=*) config_index=$i; config_path=${args[$i]#--config=} ;;
+  esac
+done
+
+temporary_config=""
+if [[ -n "$config_path" ]]; then
+  [[ -r "$config_path" ]] || die "Cannot read kind config: $config_path"
+  mapfile -t node_images < <(
+    sed -nE 's/^[[:space:]]*image:[[:space:]]*([^@[:space:]]+)@sha256:[[:xdigit:]]{64}[[:space:]]*$/\1/p' \
+      "$config_path" | sort -u
+  )
+  if ((${#node_images[@]} > 0)); then
+    for node_image in "${node_images[@]}"; do
+      "$DOCKER_REAL" image inspect "$node_image" >/dev/null 2>&1 || \
+        die "Missing local kind node image: $node_image"
+    done
+    temporary_config=$(mktemp "${TMPDIR:-/tmp}/volcano-kind-config.XXXXXX")
+    sed -E 's#^([[:space:]]*image:[[:space:]]*[^@[:space:]]+)@sha256:[[:xdigit:]]{64}([[:space:]]*)$#\1\2#' \
+      "$config_path" >"$temporary_config"
+    if [[ "${args[$config_index]}" == --config=* ]]; then
+      args[$config_index]="--config=$temporary_config"
+    else
+      args[$config_index]=$temporary_config
+    fi
+    echo "runtime: using the verified local kind image tag"
+  fi
+fi
+
+if ! "$REAL_KIND" "${args[@]}"; then
+  [[ -z "$temporary_config" ]] || rm -f -- "$temporary_config"
+  exit 1
+fi
+[[ -z "$temporary_config" ]] || rm -f -- "$temporary_config"
+
+cluster_name=kind
+for ((i=1; i<=$#; i++)); do
+  if [[ "${!i}" == --name ]]; then j=$((i+1)); cluster_name=${!j}; break; fi
+done
+
+"$DOCKER_REAL" network connect kind "$REGISTRY_NAME" >/dev/null 2>&1 || true
+hosts_content=$(cat <<EOF
+server = "https://REGISTRY_PLACEHOLDER"
+
+[host."http://${REGISTRY_ADDR}"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true
+EOF
+)
+mapfile -t nodes < <("$REAL_KIND" get nodes --name "$cluster_name")
+for node in "${nodes[@]}"; do
+  for registry in docker.io registry-1.docker.io registry.k8s.io; do
+    content=${hosts_content/REGISTRY_PLACEHOLDER/$registry}
+    "$DOCKER_REAL" exec "$node" mkdir -p "/etc/containerd/certs.d/$registry"
+    printf '%s\n' "$content" | "$DOCKER_REAL" exec -i "$node" sh -c \
+      "cat > /etc/containerd/certs.d/$registry/hosts.toml"
+  done
+  "$DOCKER_REAL" exec "$node" systemctl restart containerd
+done
+echo "runtime: kind nodes use ${REGISTRY_ADDR} as their registry mirror"

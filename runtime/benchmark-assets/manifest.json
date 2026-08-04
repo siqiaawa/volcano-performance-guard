@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "v1",
+  "candidate": {
+    "commit": "d57d10f47129b11f12d875de1195a42c0a53270f"
+  },
+  "platform": "linux/amd64",
+  "registryHost": "localhost:15000",
+  "images": [
+    {
+      "sourceImage": "localhost:15000/volcanosh/performance-guard-tools:d57d10f47129b11f12d875de1195a42c0a53270f",
+      "resolvedDigest": null,
+      "registryImage": "localhost:15000/volcanosh/performance-guard-tools:d57d10f47129b11f12d875de1195a42c0a53270f",
+      "imageId": "sha256:526794e0e193d9150e40fb8aa8115ef775c61557985d52e12856b2f75c92b853",
+      "architecture": "amd64",
+      "os": "linux",
+      "candidateCommit": "d57d10f47129b11f12d875de1195a42c0a53270f",
+      "role": "performance-guard-tools"
+    },
+    {
+      "sourceImage": "busybox:1.36",
+      "resolvedDigest": "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662",
+      "registryImage": "localhost:15000/library/busybox:1.36-benchmark-d57d10f47129",
+      "imageId": "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662",
+      "architecture": "amd64",
+      "os": "linux",
+      "role": "benchmark"
+    },
+    {
+      "sourceImage": "prom/prometheus",
+      "resolvedDigest": "sha256:508729e0e2d18e11fd742a5a5ca70e557b940a93948c3c95fd0123a6fd538b69",
+      "registryImage": "localhost:15000/prom/prometheus:benchmark-d57d10f47129",
+      "imageId": "sha256:508729e0e2d18e11fd742a5a5ca70e557b940a93948c3c95fd0123a6fd538b69",
+      "architecture": "amd64",
+      "os": "linux",
+      "role": "benchmark"
+    },
+    {
+      "sourceImage": "grafana/grafana:latest",
+      "resolvedDigest": "sha256:1c1bd67c54c5fcf6e759897852b5a584191bd6796e8d328a5ace457799801261",
+      "registryImage": "localhost:15000/grafana/grafana:benchmark-d57d10f47129",
+      "imageId": "sha256:1c1bd67c54c5fcf6e759897852b5a584191bd6796e8d328a5ace457799801261",
+      "architecture": "amd64",
+      "os": "linux",
+      "role": "benchmark"
+    },
+    {
+      "sourceImage": "docker.io/volcanosh/kube-state-metrics:v2.0.0-beta",
+      "resolvedDigest": "sha256:b6015cfb50630196d84bb87c0ac96fff77bf22696a6c2e653ad29794bbdf82b9",
+      "registryImage": "localhost:15000/volcanosh/kube-state-metrics:v2.0.0-beta-benchmark-d57d10f47129",
+      "imageId": "sha256:b6015cfb50630196d84bb87c0ac96fff77bf22696a6c2e653ad29794bbdf82b9",
+      "architecture": "amd64",
+      "os": "linux",
+      "role": "benchmark"
+    },
+    {
+      "sourceImage": "volcanosh/kube-apiserver-audit-exporter:d57d10f47129b11f12d875de1195a42c0a53270f",
+      "resolvedDigest": null,
+      "registryImage": "localhost:15000/volcanosh/kube-apiserver-audit-exporter:d57d10f47129b11f12d875de1195a42c0a53270f",
+      "imageId": "sha256:0d3e27f89176bc905b263d698fd2fc7f0eb59b9f201a82a35e3f7137476fee39",
+      "architecture": "amd64",
+      "os": "linux",
+      "candidateCommit": "d57d10f47129b11f12d875de1195a42c0a53270f",
+      "role": "audit-exporter"
+    }
+  ],
+  "omittedOptionalImages": [],
+  "charts": [
+    {
+      "name": "kwok-chart-0.3.0.tgz",
+      "sha256": "1d3d61a267a2f65be21db7d0182d335c7adf6253ad558489b981146e6ddca17e"
+    },
+    {
+      "name": "kwok-stage-fast-chart-0.3.0.tgz",
+      "sha256": "d706a99d1acd297b6dfd05c493c0384fe022698e7ff805a520b2a4dd1f20cac2"
+    }
+  ],
+  "archive": {
+    "name": "benchmark-images.tar",
+    "sha256": "e9f76149ca71528cc444ac586daa9d771e58c9b2e9607585ecdcea5ee379d507"
+  }
+}

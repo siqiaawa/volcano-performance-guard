@@ -1,0 +1,10 @@
+volcano-offline-runner:1cb0a6359032ad5214143e0c22672f15ac7965c2
+kindest/node:v1.36.1
+registry:2.8.3
+volcanosh/vc-scheduler:1cb0a6359032ad5214143e0c22672f15ac7965c2
+volcanosh/vc-controller-manager:1cb0a6359032ad5214143e0c22672f15ac7965c2
+volcanosh/vc-webhook-manager:1cb0a6359032ad5214143e0c22672f15ac7965c2
+volcanosh/vc-agent-scheduler:1cb0a6359032ad5214143e0c22672f15ac7965c2
+volcanosh/vc-agent:1cb0a6359032ad5214143e0c22672f15ac7965c2
+busybox:latest
+localhost:15001/volcanosh/performance-guard-tools:d57d10f47129b11f12d875de1195a42c0a53270f

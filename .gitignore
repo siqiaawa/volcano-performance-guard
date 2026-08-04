@@ -4,9 +4,14 @@ tmp/
 __pycache__/
 *.py[cod]
 
-# Candidate Go module archives are Release assets; keep their commit metadata
-# and checksum in Git, but do not store the binary supplement in history.
-offline-assets/go-mod/**/*.tar.gz
+# Large Release assets and the extracted stable checkout stay outside Git.
+release-assets/*.tar
+release-assets/*.tar.gz
+release-assets/*.part
+stable/volcano/
+runtime/benchmark-assets/benchmark-images.tar
+runtime/benchmark-assets/imported-manifest.json
+runtime/benchmark-assets/registry-images.env
 
 # Reports are run artifacts. Keep only the directory policy document.
 reports/*

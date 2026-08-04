@@ -36,6 +36,7 @@ class ContractSchemaTests(unittest.TestCase):
             ("candidate-release", ROOT / "tests" / "fixtures" / "candidate-release.yaml"),
             ("profile", ROOT / "profiles" / "smoke.yaml"),
             ("profile", ROOT / "profiles" / "offline-timestamp-smoke.yaml"),
+            ("profile", ROOT / "profiles" / "performance-compare.yaml"),
             ("profile", ROOT / "profiles" / "pr-gate.yaml"),
         ]
         examples.extend(

@@ -10,4 +10,5 @@
 *.txt text eol=lf
 *.env text eol=lf
 Makefile text eol=lf
-offline-assets/**/*.tar.gz binary
+release-assets/*.tar binary
+release-assets/*.tar.gz binary

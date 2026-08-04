@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL_DOCKER=${VOLCANO_RUNTIME_REAL_DOCKER:-/usr/local/bin/docker-real}
+CGROUPNS_MODE=${VOLCANO_RUNTIME_CGROUPNS_MODE:-${VOLCANO_OFFLINE_CGROUPNS_MODE:-auto}}
+
+if [[ "${1:-}" != run ]]; then exec "$REAL_DOCKER" "$@"; fi
+kind_node=0
+private_cgroupns=0
+for arg in "$@"; do
+  [[ "$arg" == io.x-k8s.kind.role=* ]] && kind_node=1
+  [[ "$arg" == --cgroupns=private ]] && private_cgroupns=1
+done
+if ((kind_node == 0 || private_cgroupns == 0)); then exec "$REAL_DOCKER" "$@"; fi
+case "$CGROUPNS_MODE" in
+  auto) [[ -e /proc/self/ns/cgroup ]] && exec "$REAL_DOCKER" "$@" ;;
+  host) ;;
+  private) exec "$REAL_DOCKER" "$@" ;;
+  *) echo "VOLCANO_RUNTIME_CGROUPNS_MODE must be auto, host, or private" >&2; exit 2 ;;
+esac
+args=()
+for arg in "$@"; do
+  [[ "$arg" == --cgroupns=private ]] && args+=(--cgroupns=host) || args+=("$arg")
+done
+echo "runtime: using --cgroupns=host for this host kernel" >&2
+exec "$REAL_DOCKER" "${args[@]}"

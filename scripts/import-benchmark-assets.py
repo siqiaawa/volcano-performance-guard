@@ -46,12 +46,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--asset-dir", type=Path, required=True)
     parser.add_argument("--expected-commit", default="")
-    parser.add_argument("--registry-host", default="localhost:15000")
+    parser.add_argument("--registry-host", default="localhost:15001")
     parser.add_argument(
         "--skip-registry-probe",
         action="store_true",
         help="Skip the client-side localhost probe; Docker push still verifies registry availability",
     )
+    parser.add_argument("--skip-load", action="store_true", help="Use images already loaded from the verified archive")
     args = parser.parse_args()
     if not REGISTRY_RE.fullmatch(args.registry_host):
         raise RuntimeError("Registry target must be loopback HOST:PORT")
@@ -63,11 +64,6 @@ def main() -> int:
         raise RuntimeError(f"Invalid candidate commit in asset: {commit}")
     if args.expected_commit and args.expected_commit != commit:
         raise RuntimeError(f"Benchmark asset commit mismatch: expected={args.expected_commit} asset={commit}")
-    if manifest["registryHost"] != args.registry_host:
-        raise RuntimeError(
-            f"Benchmark asset registry mismatch: asset={manifest['registryHost']} requested={args.registry_host}"
-        )
-
     checksums = asset_dir / "SHA256SUMS"
     for line in checksums.read_text(encoding="utf-8").splitlines():
         expected, relative = line.split("  ", 1)
@@ -77,7 +73,8 @@ def main() -> int:
             raise RuntimeError(f"SHA-256 mismatch: {relative} expected={expected} actual={actual}")
 
     archive = asset_dir / manifest["archive"]["name"]
-    run(["docker", "load", "-i", str(archive)])
+    if not args.skip_load:
+        run(["docker", "load", "-i", str(archive)])
     if not args.skip_registry_probe and subprocess.run(
         ["curl", "-fsS", f"http://{args.registry_host}/v2/"], check=False
     ).returncode != 0:
@@ -85,15 +82,22 @@ def main() -> int:
 
     imported: list[dict[str, Any]] = []
     for entry in manifest["images"]:
-        image = entry["registryImage"]
-        actual_id = inspect_id(image)
+        asset_image = entry["registryImage"]
+        image_path = asset_image.split("/", 1)[1]
+        image = f"{args.registry_host}/{image_path}"
+        try:
+            actual_id = inspect_id(asset_image)
+        except RuntimeError:
+            actual_id = inspect_id(image)
         if actual_id != entry["imageId"]:
-            raise RuntimeError(f"Loaded image ID mismatch: {image} expected={entry['imageId']} actual={actual_id}")
+            raise RuntimeError(f"Loaded image ID mismatch: {asset_image} expected={entry['imageId']} actual={actual_id}")
+        if asset_image != image:
+            run(["docker", "tag", asset_image, image])
         output = run(["docker", "push", image], capture=True)
         digest_match = re.search(r"digest:\s+(sha256:[0-9a-f]{64})", output)
         if not digest_match:
             raise RuntimeError(f"Unable to capture registry digest: {image}")
-        imported.append({**entry, "registryDigest": digest_match.group(1)})
+        imported.append({**entry, "registryImage": image, "registryDigest": digest_match.group(1)})
 
     result = {
         "schemaVersion": "v1",

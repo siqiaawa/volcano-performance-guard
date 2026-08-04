@@ -30,8 +30,8 @@ def git_commit(directory: Path) -> str:
     return result.stdout.strip()
 
 
-def bundle_images(bundle_dir: Path) -> set[str]:
-    manifest = bundle_dir / "manifest" / "images-required.txt"
+def runtime_images(runtime_dir: Path) -> set[str]:
+    manifest = runtime_dir / "manifest" / "images-required.txt"
     return {
         line.strip()
         for line in manifest.read_text(encoding="utf-8").splitlines()
@@ -86,10 +86,10 @@ def collect_required_images(candidate_dir: Path) -> tuple[dict[str, list[str]], 
 
 
 def image_record(image: str, references: list[str], provided: set[str], docker_bin: str) -> dict[str, Any]:
-    in_bundle = image in provided
+    in_runtime = image in provided
     local = docker_image_available(image, docker_bin)
-    if in_bundle:
-        status = "provided-by-bundle"
+    if in_runtime:
+        status = "provided-by-runtime"
     elif local:
         status = "available-on-host-unverified"
     else:
@@ -97,7 +97,7 @@ def image_record(image: str, references: list[str], provided: set[str], docker_b
     return {
         "image": image,
         "references": sorted(set(references)),
-        "bundleProvided": in_bundle,
+        "runtimeProvided": in_runtime,
         "hostRuntimeAvailable": local,
         "status": status,
         "pinned": "@sha256:" in image
@@ -110,28 +110,28 @@ def main() -> int:
         description="Scan a candidate Volcano benchmark for offline image and URL dependencies without pulling anything."
     )
     parser.add_argument("--candidate-dir", type=Path, required=True)
-    parser.add_argument("--bundle-dir", type=Path, required=True)
+    parser.add_argument("--runtime-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--docker-bin", default="docker")
     args = parser.parse_args()
 
     try:
         candidate_dir = args.candidate_dir.resolve(strict=True)
-        bundle_dir = args.bundle_dir.resolve(strict=True)
+        runtime_dir = args.runtime_dir.resolve(strict=True)
         if not (candidate_dir / "benchmark").is_dir():
             raise ValueError(f"Candidate checkout has no benchmark directory: {candidate_dir}")
-        if not (bundle_dir / "manifest" / "images-required.txt").is_file():
-            raise ValueError(f"Bundle has no image manifest: {bundle_dir}")
+        if not (runtime_dir / "manifest" / "images-required.txt").is_file():
+            raise ValueError(f"Runtime has no image manifest: {runtime_dir}")
         requirements, external_urls = collect_required_images(candidate_dir)
-        provided = bundle_images(bundle_dir)
+        provided = runtime_images(runtime_dir)
         images = [image_record(image, refs, provided, args.docker_bin) for image, refs in sorted(requirements.items())]
         result = {
             "schemaVersion": "v1",
             "candidate": {"commit": git_commit(candidate_dir)},
-            "bundle": {"requiredImageManifest": str((bundle_dir / "manifest" / "images-required.txt").resolve())},
+            "runtime": {"requiredImageManifest": str((runtime_dir / "manifest" / "images-required.txt").resolve())},
             "images": images,
             "performanceToolDelta": [
-                record["image"] for record in images if not record["bundleProvided"]
+                record["image"] for record in images if not record["runtimeProvided"]
             ],
             "externalManifestUrls": external_urls,
             "offlineReady": not any(record["status"] == "missing" for record in images)

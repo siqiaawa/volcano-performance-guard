@@ -1,0 +1,23 @@
+schemaVersion: v1
+detectedAt: "2026-08-04"
+bundle:
+  name: volcano-performance-guard-runtime
+  semanticVersion: v0.2.0
+  fingerprint: sha256:7b84587957ea3ea17e4d53a65f030be219928eacb0a27d3a91338d056c94b95d
+  platform: linux/amd64
+referenceVolcano:
+  commit: d57d10f47129b11f12d875de1195a42c0a53270f
+runtimeBase:
+  commit: 1cb0a6359032ad5214143e0c22672f15ac7965c2
+toolchain:
+  goVersion: 1.26.2
+  kubernetesVersion: v1.36.1
+  kindVersion: v0.32.0
+  runnerImage: volcano-offline-runner:1cb0a6359032ad5214143e0c22672f15ac7965c2
+  kindNodeImage: kindest/node:v1.36.1
+capabilities:
+  projectOwnedRuntime: true
+  localRegistryMirror: true
+  onlineGoModuleCache: true
+  communityBenchmark: true
+  upstreamE2E: false

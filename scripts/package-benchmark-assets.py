@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package external Benchmark images and the bundle's offline KWOK charts."""
+"""Package external Benchmark images and the Runtime's pinned KWOK charts."""
 from __future__ import annotations
 
 import argparse
@@ -56,13 +56,13 @@ def source_digest(record: dict[str, Any], image: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bundle-dir", type=Path, required=True)
+    parser.add_argument("--runtime-dir", type=Path, required=True)
     parser.add_argument("--candidate-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--audit-image", default="")
     parser.add_argument("--tools-image", required=True)
     parser.add_argument("--expected-commit", default="")
-    parser.add_argument("--registry-host", default="localhost:15000")
+    parser.add_argument("--registry-host", default="localhost:15001")
     parser.add_argument("--sources", type=Path, default=Path("configs/benchmark-assets.sources.json"))
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument(
@@ -78,7 +78,7 @@ def main() -> int:
     if not REGISTRY_RE.fullmatch(args.registry_host):
         raise RuntimeError("Registry target must be loopback HOST:PORT")
 
-    bundle_dir = args.bundle_dir.resolve(strict=True)
+    runtime_dir = args.runtime_dir.resolve(strict=True)
     candidate_dir = args.candidate_dir.resolve(strict=True)
     output_dir = args.output_dir.resolve()
     sources_path = args.sources if args.sources.is_absolute() else Path.cwd() / args.sources
@@ -168,10 +168,10 @@ def main() -> int:
     )
     target_images.append(audit_target)
 
-    for relative in sources["chartsFromBundle"]:
-        source_chart = bundle_dir / relative
+    for relative in sources["chartsFromRuntime"]:
+        source_chart = runtime_dir / relative
         if not source_chart.is_file():
-            raise RuntimeError(f"Bundle chart is missing: {source_chart}")
+            raise RuntimeError(f"Runtime chart is missing: {source_chart}")
         shutil.copy2(source_chart, charts_dir / source_chart.name)
 
     archive = output_dir / "benchmark-images.tar"

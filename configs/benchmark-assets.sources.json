@@ -27,8 +27,8 @@
       "required": false
     }
   ],
-  "chartsFromBundle": [
-    "charts/kwok-chart-0.3.0.tgz",
-    "charts/kwok-stage-fast-chart-0.3.0.tgz"
+  "chartsFromRuntime": [
+    "benchmark-assets/charts/kwok-chart-0.3.0.tgz",
+    "benchmark-assets/charts/kwok-stage-fast-chart-0.3.0.tgz"
   ]
 }
