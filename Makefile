@@ -16,6 +16,11 @@ PERFORMANCE_TOOLS_IMAGE ?= $(CANDIDATE_REGISTRY_HOST)/volcanosh/performance-guar
 PERFORMANCE_TOOLS_DOCKERFILE ?= $(ROOT_DIR)/tools/Dockerfile
 TOOLS_PYTHON ?= bash $(ROOT_DIR)/scripts/run-performance-tools.sh
 CANDIDATE_DEPS_ASSET_DIR ?= $(ROOT_DIR)/.work/offline-assets/go-mod/$(CANDIDATE_EXPECTED_COMMIT)
+CANDIDATE_GO_PROXY ?= https://goproxy.cn,direct
+STABLE_DIR ?= $(ROOT_DIR)/stable/volcano
+STABLE_COMMIT ?= $(shell awk -F= '$$1 == "STABLE_COMMIT" {print $$2; exit}' "$(ROOT_DIR)/stable/stable.env")
+STABLE_DEPS_ASSET_DIR ?= $(ROOT_DIR)/.work/offline-assets/go-mod/$(STABLE_COMMIT)
+STABLE_RUNNER_IMAGE ?= volcano-stable-runner:$(STABLE_COMMIT)
 CANDIDATE_RUNNER_IMAGE ?= volcano-candidate-runner:$(CANDIDATE_EXPECTED_COMMIT)
 CANDIDATE_BUILD_DIR ?= $(ROOT_DIR)/.work/candidates/build
 CANDIDATE_CLUSTER_NAME ?= volcano-candidate-smoke
@@ -49,7 +54,7 @@ RUN_METRICS_DIR ?= $(ROOT_DIR)/tests/fixtures/run-metrics
 PERFORMANCE_GUARD_TOOLS_IMAGE ?= $(PERFORMANCE_TOOLS_IMAGE)
 export PERFORMANCE_GUARD_TOOLS_IMAGE
 
-.PHONY: help setup inspect-runtime scan-benchmark-deps candidate-preflight candidate-prepare-deps package-candidate-deps import-candidate-deps candidate-build-binaries candidate-build-audit-exporter package-performance-tools package-benchmark-assets import-benchmark-assets candidate-build-images candidate-publish-images candidate-create-cluster candidate-create-audit-cluster candidate-deploy candidate-install-monitoring candidate-smoke candidate-community-benchmark candidate-audit-community-benchmark candidate-timestamp-profile compare-baseline candidate-cleanup contract-validate mock-prepare mock-inspect mock-cleanup dry-run aggregate-demo contract-demo test
+.PHONY: help setup inspect-runtime scan-benchmark-deps stable-prepare-deps stable-import-deps candidate-preflight candidate-prepare-deps package-candidate-deps import-candidate-deps candidate-build-binaries candidate-build-audit-exporter package-performance-tools package-benchmark-assets import-benchmark-assets candidate-build-images candidate-publish-images candidate-create-cluster candidate-create-audit-cluster candidate-deploy candidate-install-monitoring candidate-smoke candidate-community-benchmark candidate-audit-community-benchmark candidate-timestamp-profile compare-baseline candidate-cleanup contract-validate mock-prepare mock-inspect mock-cleanup dry-run aggregate-demo contract-demo test
 
 help:
 	@printf '%s\n' \
@@ -59,6 +64,8 @@ help:
 	  '  make setup               Download, verify, and install Runtime and stable assets' \
 	  '  make inspect-runtime     Inspect the internal runtime without mutating it' \
 	  '  make scan-benchmark-deps Scan candidate benchmark dependencies and calculate the offline image delta' \
+	  '  make stable-prepare-deps ONLINE: package the stable checkout Go supplement' \
+	  '  make stable-import-deps  OFFLINE: import the stable Go supplement Runner' \
 	  '  make candidate-preflight Check candidate Git identity, offline Go cache, and base images' \
 	  '  make candidate-prepare-deps Discover, package, import, and verify candidate Go modules' \
 	  '  make package-candidate-deps  ONLINE: package only missing Candidate Go modules' \
@@ -105,6 +112,25 @@ scan-benchmark-deps:
 		--runtime-dir "$(RUNTIME_DIR)" \
 		--output "$(CANDIDATE_BENCHMARK_DEPS)"
 
+stable-prepare-deps:
+	@test "$(ALLOW_NETWORK)" = "1" || { echo 'Set ALLOW_NETWORK=1 for the explicit online stable dependency preparation phase' >&2; exit 1; }
+	bash adapters/runtime/prepare-candidate-deps.sh \
+		--runtime-dir "$(RUNTIME_DIR)" \
+		--candidate-dir "$(STABLE_DIR)" \
+		--asset-dir "$(STABLE_DEPS_ASSET_DIR)" \
+		--runner-image "$(STABLE_RUNNER_IMAGE)" \
+		--expected-commit "$(STABLE_COMMIT)" \
+		--goproxy "$(CANDIDATE_GO_PROXY)" \
+		--embedded-go-mod \
+		--allow-network
+
+stable-import-deps:
+	bash adapters/runtime/import-version-deps.sh \
+		--runtime-dir "$(RUNTIME_DIR)" \
+		--asset-dir "$(STABLE_DEPS_ASSET_DIR)" \
+		--runner-image "$(STABLE_RUNNER_IMAGE)" \
+		--expected-commit "$(STABLE_COMMIT)"
+
 candidate-preflight:
 	@expected_args=(); \
 	runner_args=(); \
@@ -135,6 +161,7 @@ candidate-prepare-deps:
 		--preflight-output "$(CANDIDATE_PREFLIGHT)" \
 		--missing-modules-output "$(CANDIDATE_MISSING_MODULES)" \
 		--output-env "$(ROOT_DIR)/.work/candidate-runner.env" \
+		--goproxy "$(CANDIDATE_GO_PROXY)" \
 		"$${network_args[@]}" "$${expected_args[@]}"
 
 package-candidate-deps:

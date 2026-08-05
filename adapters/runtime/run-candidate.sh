@@ -17,6 +17,8 @@ checkout mounted read-only at /workspace/volcano. Network mode defaults to
 none. The Docker socket is absent unless --with-docker-socket is explicit.
 Set PERFORMANCE_GUARD_GO_MODE=online and PERFORMANCE_GUARD_NETWORK_MODE=host
 for the controlled server workflow that downloads Go modules from GOPROXY.
+Set PERFORMANCE_GUARD_USE_EMBEDDED_GO_MOD=1 when the Runner image contains a
+version-bound module supplement and its embedded cache must not be masked.
 EOF
 }
 
@@ -151,11 +153,14 @@ docker_args=(
   -v "$candidate_dir:/workspace/volcano:ro"
   -v "$state_dir/home:/root"
   -v "$state_dir/go-build:/root/.cache/go-build"
-  -v "$state_dir/go-mod:/go/pkg/mod"
   -v "$kind_wrapper:/usr/local/bin/kind:ro"
   -v "$docker_wrapper:/usr/local/bin/docker:ro"
   -w /workspace/volcano
 )
+
+if [[ "${PERFORMANCE_GUARD_USE_EMBEDDED_GO_MOD:-0}" != "1" ]]; then
+  docker_args+=("-v" "$state_dir/go-mod:/go/pkg/mod")
+fi
 
 if [[ -n "$output_dir" ]]; then
   mkdir -p -- "$output_dir"

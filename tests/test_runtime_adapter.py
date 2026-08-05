@@ -23,6 +23,7 @@ INSTALL_MONITORING = ROOT / "adapters" / "runtime" / "install-candidate-monitori
 PREPARE_CANDIDATE_DEPS = ROOT / "adapters" / "runtime" / "prepare-candidate-deps.sh"
 PACKAGE_BENCHMARK_ASSETS = ROOT / "scripts" / "package-benchmark-assets.py"
 IMPORT_BENCHMARK_ASSETS = ROOT / "scripts" / "import-benchmark-assets.py"
+IMPORT_VERSION_DEPS = ROOT / "adapters" / "runtime" / "import-version-deps.sh"
 TOOLS_DOCKERFILE = ROOT / "tools" / "Dockerfile"
 TOOLS_WRAPPER = ROOT / "scripts" / "run-performance-tools.sh"
 RUNTIME_DIR = ROOT / "runtime"
@@ -190,6 +191,8 @@ class RuntimeAdapterTests(unittest.TestCase):
         self.assertIn("io.volcano.performance-guard.candidate.commit", dockerfile)
         self.assertIn("COPY --from=runner-tools /usr/local/bin/docker-real", dockerfile)
         self.assertIn("PYTHONPATH=/opt/performance-guard/vendor", dockerfile)
+        wrapper_script = TOOLS_WRAPPER.read_text(encoding="utf-8")
+        self.assertIn("add_safe_git_directory", wrapper_script)
         result = subprocess.run(
             ["bash", str(TOOLS_WRAPPER), "--help"],
             check=False,
@@ -254,6 +257,21 @@ class RuntimeAdapterTests(unittest.TestCase):
         self.assertIn("--runner-image", script)
         self.assertIn("max_iterations=5", script)
         self.assertIn("sort -u", script)
+
+    def test_version_dependency_importer_has_an_offline_contract(self) -> None:
+        result = subprocess.run(
+            ["bash", str(IMPORT_VERSION_DEPS), "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--runtime-dir", result.stdout)
+        self.assertIn("--asset-dir", result.stdout)
+        script = IMPORT_VERSION_DEPS.read_text(encoding="utf-8")
+        self.assertIn("go-mod-supplement.tar.gz.sha256", script)
+        self.assertIn("--network=none", script)
+        self.assertIn("base-runner-image.txt", script)
 
 
 if __name__ == "__main__":

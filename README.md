@@ -54,6 +54,23 @@ volcano-performance-guard/
 - 服务器可以访问 `https://goproxy.cn/`，仅用于按需下载 Go 模块；
 - 待测 Volcano 必须是干净的本地 Git 工作树。
 
+固定 stable 的二进制构建必须使用与 stable commit 绑定的离线 Go module
+supplement。该 supplement 不进入 Git，应提前放在：
+
+```text
+.work/offline-assets/go-mod/<stable-commit>/
+```
+
+目录至少包含 `go-mod-supplement.tar.gz`、其 SHA-256 文件、
+`candidate-commit.txt` 和 `base-runner-image.txt`。首次准备时可以执行一次：
+
+```bash
+make stable-prepare-deps ALLOW_NETWORK=1
+```
+
+该命令是显式的在线准备阶段。准备完成后，性能比较阶段不会为 stable
+访问公网；只有待测版本允许通过 `goproxy.cn` 下载自己的 Go 增量模块。
+
 宿主机不要求安装 Python。项目的性能工具镜像包含 Python 3 和固定依赖。
 
 ## 首次准备
@@ -78,6 +95,8 @@ find runtime adapters scripts stable release-assets -type f -name '*.sh' -exec c
 
 ```bash
 ./setup.sh --skip-download
+
+make stable-import-deps
 ```
 
 安装后可检查：
@@ -97,6 +116,16 @@ docker image inspect kindest/node:v1.36.1 >/dev/null
 
 ```bash
 ./volcano-performance-guard.sh fixed-compare \
+  --candidate-path /srv/volcano-candidate \
+  --output-dir /srv/results/fixed-fresh
+```
+
+默认从 `.work/offline-assets/go-mod/<stable-commit>/` 加载 stable supplement；
+也可以显式指定位置：
+
+```bash
+./volcano-performance-guard.sh fixed-compare \
+  --stable-deps-dir /srv/release-assets/stable-go-mod \
   --candidate-path /srv/volcano-candidate \
   --output-dir /srv/results/fixed-fresh
 ```
@@ -173,9 +202,10 @@ GOTOOLCHAIN=auto
 GOFLAGS=-mod=mod
 ```
 
-模块缓存在 `.work/candidate-state/go-mod/`，后续版本通常只下载新增或变化的
-模块。镜像构建、Kind、Helm 部署和 Benchmark 不会从公网兜底下载。两个源码
-目录均只读挂载，脚本不会改写待测仓库。
+stable 的 Go module supplement 在比较前离线导入派生 Runner；待测版本的模块
+缓存在 `.work/candidate-state/go-mod/`，后续版本通常只下载新增或变化的模块。
+镜像构建、Kind、Helm 部署和 Benchmark 不会从公网兜底下载。两个源码目录均
+只读挂载，脚本不会改写待测仓库。
 
 ## 维护与 Release
 

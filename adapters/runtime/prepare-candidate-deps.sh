@@ -11,7 +11,8 @@ Usage: prepare-candidate-deps.sh --runtime-dir PATH --candidate-dir PATH
                                   [--asset-dir PATH] [--runner-image NAME]
                                   [--preflight-output PATH]
                                   [--missing-modules-output PATH]
-                                  [--output-env PATH] [--allow-network]
+                                  [--output-env PATH] [--goproxy URLS]
+                                  [--allow-network] [--embedded-go-mod]
 
 Discover missing Go modules with the Runtime Runner, optionally package only
 those modules during an explicitly online phase, import the supplement into a
@@ -29,7 +30,9 @@ runner_image=""
 preflight_output=""
 missing_modules_output=""
 output_env=""
+goproxy="${PERFORMANCE_GUARD_GO_PROXY:-https://goproxy.cn,direct}"
 allow_network=false
+embedded_go_mod=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,7 +44,9 @@ while [[ $# -gt 0 ]]; do
     --preflight-output) preflight_output="${2:?}"; shift 2 ;;
     --missing-modules-output) missing_modules_output="${2:?}"; shift 2 ;;
     --output-env) output_env="${2:?}"; shift 2 ;;
+    --goproxy) goproxy="${2:?}"; shift 2 ;;
     --allow-network) allow_network=true; shift ;;
+    --embedded-go-mod) embedded_go_mod=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown argument: $1" ;;
   esac
@@ -131,6 +136,10 @@ log_warn "ONLINE PACKAGING: downloading only the discovered module set"
 all_missing="$work_dir/all-missing-modules.txt"
 sort -u "$base_missing" >"$all_missing"
 max_iterations=5
+preflight_embedded_args=()
+if [[ "$embedded_go_mod" == true ]]; then
+  preflight_embedded_args+=(--embedded-go-mod)
+fi
 for ((iteration = 1; iteration <= max_iterations; iteration++)); do
   bash "$script_dir/package-candidate-deps.sh" \
     --runtime-dir "$runtime_dir" \
@@ -138,6 +147,7 @@ for ((iteration = 1; iteration <= max_iterations; iteration++)); do
     --missing-modules "$all_missing" \
     --output-dir "$asset_dir" \
     --expected-commit "$candidate_commit" \
+    --goproxy "$goproxy" \
     --allow-network
 
   bash "$script_dir/import-candidate-deps.sh" \
@@ -154,7 +164,8 @@ for ((iteration = 1; iteration <= max_iterations; iteration++)); do
     --candidate-dir "$candidate_dir" \
     --runner-image "$runner_image" \
     --missing-modules-output "$iteration_missing" \
-    --output "$preflight_output"
+    --output "$preflight_output" \
+    "${preflight_embedded_args[@]}"
   iteration_status=$?
   set -e
 

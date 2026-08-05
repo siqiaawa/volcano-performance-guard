@@ -9,9 +9,11 @@ usage() {
 Usage: preflight-candidate.sh --runtime-dir PATH --candidate-dir PATH
                               [--expected-commit SHA] [--runner-image NAME]
                               [--missing-modules-output PATH] [--output PATH]
+                              [--embedded-go-mod]
 
 Validate candidate identity, Go dependency availability with network disabled,
-and local availability of every base image used by the component Dockerfiles.
+and local availability of every Runtime image used to rebase the built
+components. The candidate Dockerfiles are not built by the performance guard.
 No image is built and no cluster is created.
 EOF
 }
@@ -22,6 +24,7 @@ expected_commit=""
 output=""
 runner_image=""
 missing_modules_output=""
+embedded_go_mod=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,6 +58,10 @@ while [[ $# -gt 0 ]]; do
       missing_modules_output="$2"
       shift 2
       ;;
+    --embedded-go-mod)
+      embedded_go_mod=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -83,26 +90,14 @@ if [[ -n "$(git -C "$candidate_dir" status --porcelain)" ]]; then
   candidate_clean=false
 fi
 
-component_dockerfiles=(
-  "$candidate_dir/installer/dockerfile/scheduler/Dockerfile"
-  "$candidate_dir/installer/dockerfile/controller-manager/Dockerfile"
-  "$candidate_dir/installer/dockerfile/webhook-manager/Dockerfile"
-  "$candidate_dir/installer/dockerfile/agent-scheduler/Dockerfile"
-  "$candidate_dir/installer/dockerfile/agent/Dockerfile"
-)
-for dockerfile in "${component_dockerfiles[@]}"; do
-  [[ -f "$dockerfile" ]] || die "Candidate component Dockerfile is missing: $dockerfile"
+reference_commit="$(awk -F= '$1 == "RUNTIME_BASE_COMMIT" {sub(/^[^=]*=/, ""); print; found=1} END {if (!found) exit 1}' \
+  "$runtime_dir/runtime.env" | tr -d '\r')" || die "Runtime metadata is missing RUNTIME_BASE_COMMIT"
+[[ "$reference_commit" =~ ^[0-9a-f]{40}$ ]] || die "Runtime base commit is not a full commit SHA"
+components=(scheduler controller-manager webhook-manager agent-scheduler agent)
+base_images=()
+for component in "${components[@]}"; do
+  base_images+=("volcanosh/vc-$component:$reference_commit")
 done
-
-open_euler_tag="$(awk -F= '$1 == "ARG OPEN_EULER_IMAGE_TAG" {print $2; exit}' \
-  "$candidate_dir/installer/dockerfile/agent/Dockerfile")"
-[[ -n "$open_euler_tag" ]] || die "Unable to resolve OPEN_EULER_IMAGE_TAG"
-
-mapfile -t base_images < <(
-  awk '$1 == "FROM" {print $2}' "${component_dockerfiles[@]}" |
-    sed "s|\${OPEN_EULER_IMAGE_TAG}|$open_euler_tag|g" |
-    sort -u
-)
 
 missing_images=()
 for image in "${base_images[@]}"; do
@@ -121,8 +116,12 @@ runner_args=()
 if [[ -n "$runner_image" ]]; then
   runner_args+=(--runner-image "$runner_image")
 fi
+go_mod_env=()
+if [[ "$embedded_go_mod" == true ]]; then
+  go_mod_env+=(PERFORMANCE_GUARD_USE_EMBEDDED_GO_MOD=1)
+fi
 set +e
-"$script_dir/run-candidate.sh" \
+env "${go_mod_env[@]}" "$script_dir/run-candidate.sh" \
   --runtime-dir "$runtime_dir" \
   --candidate-dir "$candidate_dir" \
   --network none \
@@ -142,7 +141,7 @@ fi
 go_status=$download_status
 if ((download_status == 0)); then
   set +e
-  "$script_dir/run-candidate.sh" \
+  env "${go_mod_env[@]}" "$script_dir/run-candidate.sh" \
     --runtime-dir "$runtime_dir" \
     --candidate-dir "$candidate_dir" \
     --network none \

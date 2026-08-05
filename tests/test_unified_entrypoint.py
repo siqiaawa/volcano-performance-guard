@@ -134,6 +134,23 @@ class UnifiedEntrypointTests(unittest.TestCase):
         self.assertIn('network_mode="${PERFORMANCE_GUARD_NETWORK_MODE:-none}"', build_script)
         self.assertIn("BUILD_NETWORK=$network_mode", build_script)
 
+    def test_stable_build_is_explicitly_offline_and_uses_a_bound_runner(self) -> None:
+        script = ENTRYPOINT.read_text(encoding="utf-8")
+        importer = (ROOT / "adapters" / "runtime" / "import-version-deps.sh").read_text(
+            encoding="utf-8"
+        )
+        runner_dockerfile = (ROOT / "adapters" / "runtime" / "candidate-deps.Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("--stable-deps-dir", script)
+        self.assertIn("--stable-runner-image", script)
+        self.assertIn("prepare_stable_runner", script)
+        self.assertIn('go_mode="offline"', script)
+        self.assertIn('network_mode="none"', script)
+        self.assertIn("import-version-deps.sh", script)
+        self.assertIn("--network=none", importer)
+        self.assertIn("ENV GOPROXY=off", runner_dockerfile)
+
     def test_unified_profile_is_forwarded_to_each_version_run(self) -> None:
         script = ENTRYPOINT.read_text(encoding="utf-8")
         makefile = MAKEFILE.read_text(encoding="utf-8")

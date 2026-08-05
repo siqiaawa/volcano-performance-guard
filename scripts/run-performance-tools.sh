@@ -69,10 +69,20 @@ fi
 
 declare -A mounted_paths=()
 safe_git_directories=("$project_dir")
+add_safe_git_directory() {
+  local directory="$1" existing
+  for existing in "${safe_git_directories[@]}"; do
+    [[ "$existing" == "$directory" ]] && return 0
+  done
+  safe_git_directories+=("$directory")
+}
 add_mount() {
   local requested="$1" mode="$2" mount_path
   [[ "$requested" == /* ]] || return 0
   requested="$(realpath -m -- "$requested")"
+  if [[ -d "$requested/.git" || -f "$requested/.git" ]]; then
+    add_safe_git_directory "$requested"
+  fi
   if [[ "$requested" == "$project_dir" || "$requested" == "$project_dir"/* ]]; then
     return 0
   fi
@@ -85,9 +95,6 @@ add_mount() {
   [[ -n "${mounted_paths[$mount_path]:-}" ]] && return 0
   mounted_paths["$mount_path"]="$mode"
   docker_args+=(-v "$mount_path:$mount_path:$mode")
-  if [[ -d "$requested/.git" || -f "$requested/.git" ]]; then
-    safe_git_directories+=("$requested")
-  fi
 }
 
 previous_option=""

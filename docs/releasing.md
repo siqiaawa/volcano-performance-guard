@@ -13,6 +13,18 @@
 不需要新 Release。仅当下列内容变化时重打大型附件：Runner、Kind/Kubernetes、
 组件基础镜像、性能工具/监控镜像或内置 stable。
 
+固定 stable 的离线比较还需要为 `stable/stable.env` 中的 `STABLE_COMMIT` 生成
+一个 Go module supplement。使用：
+
+```bash
+make stable-prepare-deps ALLOW_NETWORK=1
+```
+
+生成的目录位于 `.work/offline-assets/go-mod/<stable-commit>/`，应作为新的
+Release 附件发布。性能比较阶段通过派生 Runner 使用该 supplement，stable 使用
+`GOPROXY=off` 和 Docker `--network none`；只有 candidate 构建阶段允许在线下载
+增量模块。
+
 ## 1. 先判断是否需要新的资产版本
 
 如果 Runner、Kind/Kubernetes、组件基础镜像、性能工具、监控镜像和内置 stable
@@ -74,8 +86,9 @@ stable-volcano-d57d10f47129.tar.gz
 SHA256SUMS
 ```
 
-实际文件名以 `release-assets/release.env` 为准。不要再上传 v0.1 的
-`go-mod-supplement.tar.gz`；服务器现在通过 `goproxy.cn` 自动维护增量缓存。
+实际文件名以 `release-assets/release.env` 为准。stable supplement 也应作为
+单独的 Release 附件上传；不要把 module cache 提交到 Git。candidate 的增量
+模块仍由服务器通过 `goproxy.cn` 按需维护。
 
 ## 4. 提交代码并创建资产 Release
 
